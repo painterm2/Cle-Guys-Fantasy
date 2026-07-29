@@ -186,12 +186,15 @@ export default function ParlayPage() {
             value={pick}
             onChange={(e) => setPick(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addLeg()}
+            disabled={!identified}
             placeholder={identified ? "Your leg — e.g. “Chiefs -3.5” or “Chase anytime TD”" : "Pick your team above to add a leg"}
             style={{ fontSize: 14, padding: "9px 12px", borderRadius: 4, border: `1px solid ${colors.cardBorder}`, outline: "none", fontFamily: fonts.body, flex: 1, minWidth: 200 }}
           />
           <button
             onClick={addLeg}
-            style={{ background: colors.orange, color: "#fff", border: "none", fontFamily: fonts.condensed, fontWeight: 600, fontSize: 13.5, padding: "9px 18px", borderRadius: 4, cursor: "pointer" }}
+            disabled={!identified}
+            title={identified ? undefined : "Pick your team first"}
+            style={{ background: identified ? colors.orange : "#e6ddcb", color: identified ? "#fff" : colors.brown60, border: "none", fontFamily: fonts.condensed, fontWeight: 600, fontSize: 13.5, padding: "9px 18px", borderRadius: 4, cursor: identified ? "pointer" : "default" }}
           >
             ADD LEG
           </button>

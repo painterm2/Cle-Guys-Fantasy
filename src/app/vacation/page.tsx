@@ -50,6 +50,7 @@ export default function VacationPage() {
   };
 
   const addCity = (city: string, pitch: string) => {
+    if (!identified) return;
     mutate((cur) =>
       cur.options.some((o) => o.city.toLowerCase() === city.toLowerCase())
         ? cur
@@ -83,8 +84,10 @@ export default function VacationPage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
         <PageTitle sub="One draft, one road trip. Let's lock in the details.">2028 IN-PERSON DRAFT LOCATION</PageTitle>
         <button
-          onClick={() => setShowForm((s) => !s)}
-          style={{ background: colors.orange, color: "#fff", border: "none", fontFamily: fonts.condensed, fontWeight: 600, fontSize: 13.5, letterSpacing: 0.5, padding: "10px 18px", borderRadius: 4, cursor: "pointer", flex: "none" }}
+          onClick={() => identified && setShowForm((s) => !s)}
+          disabled={!identified}
+          title={identified ? undefined : "Pick your team first"}
+          style={{ background: identified ? colors.orange : "#e6ddcb", color: identified ? "#fff" : colors.brown60, border: "none", fontFamily: fonts.condensed, fontWeight: 600, fontSize: 13.5, letterSpacing: 0.5, padding: "10px 18px", borderRadius: 4, cursor: identified ? "pointer" : "default", flex: "none" }}
         >
           {showForm ? "CANCEL" : "+ PITCH A CITY"}
         </button>
@@ -142,7 +145,7 @@ export default function VacationPage() {
       {linkedPoll && (
         <>
           <SectionLabel>LOCATION VOTE</SectionLabel>
-          <PollCard poll={linkedPoll} commish={commish} voter={owner} actor={actor} onMutate={mutatePolls} onVoted={refreshPolls} />
+          <PollCard poll={linkedPoll} commish={commish} voter={owner} actor={actor} canPost={identified} onMutate={mutatePolls} onVoted={refreshPolls} />
         </>
       )}
 
@@ -217,12 +220,15 @@ export default function VacationPage() {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && post()}
+            disabled={!identified}
             placeholder={identified ? "Add to the plan…" : "Pick your team above to post"}
             style={{ fontSize: 14, padding: "9px 12px", borderRadius: 4, border: `1px solid ${colors.cardBorder}`, outline: "none", fontFamily: fonts.body, flex: 1, minWidth: 160 }}
           />
           <button
             onClick={post}
-            style={{ background: colors.orange, color: "#fff", border: "none", fontFamily: fonts.condensed, fontWeight: 600, fontSize: 13.5, padding: "9px 18px", borderRadius: 4, cursor: "pointer" }}
+            disabled={!identified}
+            title={identified ? undefined : "Pick your team first"}
+            style={{ background: identified ? colors.orange : "#e6ddcb", color: identified ? "#fff" : colors.brown60, border: "none", fontFamily: fonts.condensed, fontWeight: 600, fontSize: 13.5, padding: "9px 18px", borderRadius: 4, cursor: identified ? "pointer" : "default" }}
           >
             POST
           </button>

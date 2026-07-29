@@ -115,7 +115,7 @@ export function OwnerPicker({
           ? "Commish mode is on, so your posts show as The Commish. Your team is still used for voting."
           : owner
             ? note ?? "Saved on this device — posts and edits get credited to your team."
-            : "Pick your team so your posts get credited to you."}
+            : "Pick your team to vote, post, or edit. Everything you do gets credited to it."}
       </div>
     </div>
   );

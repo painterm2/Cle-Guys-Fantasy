@@ -19,6 +19,7 @@ export function PollCard({
   commish,
   voter,
   actor,
+  canPost,
   onMutate,
   onVoted,
 }: {
@@ -26,6 +27,7 @@ export function PollCard({
   commish: boolean;
   voter: string;
   actor: string;
+  canPost: boolean;
   onMutate: (fn: (cur: Poll[]) => Poll[]) => void;
   onVoted: () => void;
 }) {
@@ -65,7 +67,7 @@ export function PollCard({
 
   const addOption = () => {
     const label = newOption.trim();
-    if (!label) return;
+    if (!label || !canPost) return;
     setNewOption("");
     onMutate((cur) =>
       cur.map((p) =>
@@ -172,12 +174,14 @@ export function PollCard({
             value={newOption}
             onChange={(e) => setNewOption(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addOption()}
-            placeholder="Add your own option…"
+            placeholder={canPost ? "Add your own option…" : "Pick your team above to add an option"}
+            disabled={!canPost}
             style={{ fontSize: 13.5, padding: "8px 12px", borderRadius: 4, border: `1px dashed rgba(49,29,0,0.3)`, outline: "none", fontFamily: fonts.body, flex: 1, minWidth: 180 }}
           />
           <button
             onClick={addOption}
-            style={{ background: "none", border: `1px solid ${colors.orange}`, color: colors.orange, fontFamily: fonts.condensed, fontWeight: 700, fontSize: 12.5, letterSpacing: 0.5, padding: "8px 14px", borderRadius: 4, cursor: "pointer" }}
+            disabled={!canPost}
+            style={{ background: "none", border: `1px solid ${canPost ? colors.orange : colors.cardBorder}`, color: canPost ? colors.orange : colors.brown60, fontFamily: fonts.condensed, fontWeight: 700, fontSize: 12.5, letterSpacing: 0.5, padding: "8px 14px", borderRadius: 4, cursor: canPost ? "pointer" : "default" }}
           >
             + ADD OPTION
           </button>

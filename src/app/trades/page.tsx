@@ -22,10 +22,11 @@ const emptyBoards = (): Board[] => TEAMS.map(() => ({ looking: [], offering: [],
 export default function TradesPage() {
   const { data: boards, loaded, shared, error, mutate } = useSharedStore<Board[]>("trade-boards", emptyBoards());
   const logos = useTeamLogos();
-  const { owner, setOwner, actor } = useActor();
+  const { owner, setOwner, actor, identified } = useActor();
   const [editing, setEditing] = useState<number | null>(null);
 
   const update = (idx: number, patch: Partial<Board>) => {
+    if (!identified) return;
     mutate((cur) => {
       const base = cur.length === TEAMS.length ? cur : emptyBoards();
       return base.map((b, i) => (i === idx ? { ...b, ...patch, updatedAt: new Date().toISOString() } : b));
@@ -74,8 +75,10 @@ export default function TradesPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => (isEditing ? finishEditing(i) : setEditing(i))}
-                  style={{ background: "none", border: "none", fontFamily: fonts.condensed, fontSize: 12, fontWeight: 600, color: colors.orange, cursor: "pointer", flex: "none" }}
+                  onClick={() => (isEditing ? finishEditing(i) : identified && setEditing(i))}
+                  disabled={!identified}
+                  title={identified ? undefined : "Pick your team first"}
+                  style={{ background: "none", border: "none", fontFamily: fonts.condensed, fontSize: 12, fontWeight: 600, color: identified ? colors.orange : colors.brown60, cursor: identified ? "pointer" : "default", flex: "none" }}
                 >
                   {isEditing ? "DONE" : "EDIT"}
                 </button>

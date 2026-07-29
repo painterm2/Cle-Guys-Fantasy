@@ -12,10 +12,11 @@ import { newId, type Poll } from "@/lib/polls";
 export default function VotesPage() {
   const { commish } = useCommish();
   const { data: polls, loaded, shared, error, mutate, refresh } = useSharedStore<Poll[]>("polls", []);
-  const { owner, setOwner, actor } = useActor();
+  const { owner, setOwner, actor, identified } = useActor();
   const [showForm, setShowForm] = useState(false);
 
   const addPoll = (question: string, options: string[], closes: string, allowAdditions: boolean) => {
+    if (!identified) return;
     const poll: Poll = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       question,
@@ -34,8 +35,10 @@ export default function VotesPage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
         <PageTitle sub="One vote per manager. Tallies are public — who voted for what is not.">VOTES &amp; POLLS</PageTitle>
         <button
-          onClick={() => setShowForm((s) => !s)}
-          style={{ background: colors.orange, color: "#fff", border: "none", fontFamily: fonts.condensed, fontWeight: 600, fontSize: 13.5, letterSpacing: 0.5, padding: "10px 18px", borderRadius: 4, cursor: "pointer", flex: "none" }}
+          onClick={() => identified && setShowForm((s) => !s)}
+          disabled={!identified}
+          title={identified ? undefined : "Pick your team first"}
+          style={{ background: identified ? colors.orange : "#e6ddcb", color: identified ? "#fff" : colors.brown60, border: "none", fontFamily: fonts.condensed, fontWeight: 600, fontSize: 13.5, letterSpacing: 0.5, padding: "10px 18px", borderRadius: 4, cursor: identified ? "pointer" : "default", flex: "none" }}
         >
           {showForm ? "CANCEL" : "+ NEW POLL"}
         </button>
@@ -57,7 +60,7 @@ export default function VotesPage() {
       )}
 
       {polls.map((poll) => (
-        <PollCard key={poll.id} poll={poll} commish={commish} voter={owner} actor={actor} onMutate={mutate} onVoted={refresh} />
+        <PollCard key={poll.id} poll={poll} commish={commish} voter={owner} actor={actor} canPost={identified} onMutate={mutate} onVoted={refresh} />
       ))}
     </>
   );
