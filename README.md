@@ -72,6 +72,22 @@ This is a **private** league, so it needs two session cookies.
 
 ---
 
+## Peter's punishment photo wall
+
+The Punishments page has a shared photo wall where the punished player uploads a
+weekly pic (e.g. wearing the jersey) that **everyone** sees. Images are stored
+in **Vercel Blob** so they're shared across all viewers (not per-browser).
+
+**Enable it (1 minute, one time):**
+1. In your Vercel project → **Storage** tab → **Create Database** → **Blob** →
+   connect it to this project.
+2. Vercel automatically adds a `BLOB_READ_WRITE_TOKEN` env var — nothing to copy.
+3. Redeploy. The uploader goes live; until then it shows a friendly "not set up"
+   note and everything else works normally.
+
+Photos are downscaled in the browser before upload. Commish Mode shows a delete
+(×) on each photo for moderation.
+
 ## Run it locally
 
 ```bash

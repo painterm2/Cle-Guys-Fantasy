@@ -162,7 +162,7 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: 0;
-  animation: cg-marquee 80s linear infinite;
+  animation: cg-marquee 120s linear infinite;
   will-change: transform;
 }
 .cg-ticker:hover .cg-ticker-track {

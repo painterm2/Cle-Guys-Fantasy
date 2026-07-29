@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { colors, fonts } from "@/lib/theme";
 import { PageTitle, SectionLabel } from "@/components/ui";
+import { PunishmentProof } from "@/components/PunishmentProof";
 import { currentPunishment, punishmentHistory, SEASON_YEAR } from "@/lib/leagueData";
 
 export default function PunishmentsPage() {
@@ -33,6 +34,8 @@ export default function PunishmentsPage() {
           <div style={{ fontFamily: fonts.display, fontSize: 24, color: colors.cream }}>{currentPunishment.text}</div>
         </div>
       </div>
+
+      <PunishmentProof who="Peter" />
 
       <SectionLabel>HALL OF SHAME — PAST SENTENCES</SectionLabel>
       {punishmentHistory.map((p) => (

@@ -56,7 +56,7 @@ export const ruleGroups = [
   {
     title: "PUNISHMENT",
     rules: [
-      { num: "4.1", text: "Last place finisher serves the punishment for the following season." },
+      { num: "4.1", text: "The last-place finisher in the REGULAR SEASON (playoffs not included) serves the punishment the following season." },
       { num: "4.2", text: "Punishment is chosen by league vote before Week 1." },
     ],
   },
