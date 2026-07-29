@@ -99,22 +99,53 @@ export const draftVideos = [
   { year: "2025", title: "Draft Order Announcement", youtubeId: "U5BXm38ZU54", start: 488 },
 ];
 
-// League store — products hosted on Printful. Paste each product's share URL
-// (and an image URL, optional) here; the Store page links straight out to it.
-// To swap a product, just change the entry.
+// League store. There's no public storefront — guys request an item here and
+// the commish places the actual Printful order. Fill in each product below.
+//
+// `image` can be a Printful mockup URL, or drop the file in public/store/ and
+// use "/store/whatever.png". Leave `name` blank to hide a slot.
 export interface StoreProduct {
+  id: string;
   name: string;
   blurb: string;
-  price?: string;
-  url: string;
-  image?: string;
+  /** Price in dollars, used for the cart subtotal. */
+  price: number;
+  /** Product photos — first one is the card image; extras get thumbnails. */
+  images?: string[];
+  /** Size options offered; omit for one-size items like mugs or stickers. */
+  sizes?: string[];
+  /** Colorways offered, if more than one. */
+  colors?: string[];
 }
 
 export const storeProducts: StoreProduct[] = [
-  { name: "", blurb: "", price: "", url: "", image: "" },
-  { name: "", blurb: "", price: "", url: "", image: "" },
-  { name: "", blurb: "", price: "", url: "", image: "" },
+  {
+    id: "cle-guys-shirt",
+    name: "CLE Guys Shirt",
+    blurb: "Comfort Colors heavyweight garment-dyed cotton. Embroidered CG on the front, full logo across the back.",
+    price: 0, // TODO: set the price
+    images: ["/store/cle-guys-shirt-front.png", "/store/cle-guys-shirt-back.png"],
+    sizes: ["S", "M", "L", "XL", "XXL"],
+  },
+  {
+    id: "cle-guys-socks",
+    name: "CLE Guys Socks",
+    blurb: "White ribbed crew socks with the CG mark embroidered on the cuff.",
+    price: 0, // TODO: set the price
+    images: ["/store/cle-guys-socks.png"],
+    sizes: ["S/M", "M/L"],
+  },
+  {
+    id: "cle-guys-dad-hat",
+    name: "CLE Guys Dad Hat",
+    blurb: "Black dad hat with the full Cleveland Guys logo embroidered across the front. One size fits all.",
+    price: 0, // TODO: set the price
+    images: ["/store/cle-guys-dad-hat.png"],
+  },
 ];
+
+/** Where the commish wants the order screenshot sent. */
+export const COMMISH_CONTACT = "the commish";
 
 export const POSITIONS = ["QB", "RB", "WR", "TE", "FLEX", "DEF", "K"] as const;
 
