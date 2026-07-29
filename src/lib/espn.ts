@@ -308,3 +308,156 @@ export async function getSchedule(): Promise<EspnResult<Schedule>> {
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// League history — champions + regular-season last-place finishers per season,
+// pulled from ESPN's leagueHistory endpoint (one call per season). Used to
+// replace hand-entered History / Hall of Shame data with the real record.
+// ---------------------------------------------------------------------------
+
+const FIRST_SEASON = 2019; // Cleveland Guys started in 2019
+
+export interface SeasonEntry {
+  year: number;
+  team: string;
+}
+
+export interface HistoryData {
+  champions: SeasonEntry[]; // newest first
+  lastPlace: SeasonEntry[]; // newest first — regular-season last place
+  records: { label: string; value: string }[];
+  seasonsCount: number;
+}
+
+const EMPTY_HISTORY: HistoryData = { champions: [], lastPlace: [], records: [], seasonsCount: 0 };
+
+/** Fetch a single past season via the leagueHistory endpoint. */
+async function fetchHistorySeason(year: number): Promise<any | null> {
+  const cfg = getLeagueConfig();
+  const params = new URLSearchParams();
+  params.append("seasonId", String(year));
+  for (const v of ["mTeam", "mSettings"]) params.append("view", v);
+  const url = `${API_HOST}/apis/v3/games/ffl/leagueHistory/${cfg.leagueId}?${params}`;
+
+  const cookie = cookieHeader(cfg);
+  const res = await fetch(url, {
+    headers: { accept: "application/json", ...(cookie ? { cookie } : {}) },
+    next: { revalidate: 3600 }, // history changes rarely — cache an hour
+  });
+
+  if (res.status === 401) {
+    const err = new Error("ESPN returned 401 for league history — cookies missing or expired.");
+    (err as any).code = "AUTH";
+    throw err;
+  }
+  if (!res.ok) return null; // season not available (e.g. before the league existed)
+
+  const json = await res.json();
+  const league = Array.isArray(json) ? json[0] : json;
+  return league ?? null;
+}
+
+/** Pick the regular-season last-place team: highest playoff seed, or worst record. */
+function lastPlaceTeam(teams: any[]): any | null {
+  const seeded = teams.filter((t) => (t.playoffSeed ?? 0) > 0);
+  if (seeded.length) {
+    return seeded.reduce((worst, t) => (t.playoffSeed > worst.playoffSeed ? t : worst));
+  }
+  if (teams.length === 0) return null;
+  return [...teams].sort(
+    (a, b) =>
+      (a.record?.overall?.wins ?? 0) - (b.record?.overall?.wins ?? 0) ||
+      (a.record?.overall?.pointsFor ?? 0) - (b.record?.overall?.pointsFor ?? 0),
+  )[0];
+}
+
+export async function getLeagueHistory(): Promise<EspnResult<HistoryData>> {
+  const needsCreds = !hasCredentials();
+  const end = currentSeason();
+  const years: number[] = [];
+  for (let y = FIRST_SEASON; y <= end; y++) years.push(y);
+
+  try {
+    const seasons = await Promise.all(
+      years.map((y) =>
+        fetchHistorySeason(y)
+          .then((league) => ({ y, league }))
+          .catch((err) => {
+            if (err?.code === "AUTH") throw err;
+            return { y, league: null };
+          }),
+      ),
+    );
+
+    const champions: SeasonEntry[] = [];
+    const lastPlace: SeasonEntry[] = [];
+    const titleCount: Record<string, number> = {};
+    const lastCount: Record<string, number> = {};
+    let bestSeason = { team: "", year: 0, points: 0 };
+    let completed = 0;
+
+    for (const { y, league } of seasons) {
+      const teams: any[] = league?.teams ?? [];
+      if (teams.length === 0) continue;
+
+      // A season is "complete" once ESPN has assigned a final #1.
+      const champ = teams.find((t) => t.rankCalculatedFinal === 1);
+      if (!champ) continue;
+      completed++;
+
+      const champName = teamName(champ, `Team ${champ.id}`);
+      champions.push({ year: y, team: champName });
+      titleCount[champName] = (titleCount[champName] ?? 0) + 1;
+
+      const loser = lastPlaceTeam(teams);
+      if (loser) {
+        const loserName = teamName(loser, `Team ${loser.id}`);
+        lastPlace.push({ year: y, team: loserName });
+        lastCount[loserName] = (lastCount[loserName] ?? 0) + 1;
+      }
+
+      for (const t of teams) {
+        const pf = t.record?.overall?.pointsFor ?? 0;
+        if (pf > bestSeason.points) bestSeason = { team: teamName(t, `Team ${t.id}`), year: y, points: pf };
+      }
+    }
+
+    if (completed === 0) {
+      return {
+        status: needsCreds ? "unconfigured" : "error",
+        data: EMPTY_HISTORY,
+        needsCredentials: needsCreds,
+        error: "ESPN returned no completed seasons.",
+      };
+    }
+
+    champions.sort((a, b) => b.year - a.year);
+    lastPlace.sort((a, b) => b.year - a.year);
+
+    const records: { label: string; value: string }[] = [];
+    const topTitles = Object.entries(titleCount).sort((a, b) => b[1] - a[1])[0];
+    if (topTitles) {
+      records.push({ label: "Most championships", value: `${topTitles[0]} — ${topTitles[1]} ${topTitles[1] === 1 ? "title" : "titles"}` });
+    }
+    if (bestSeason.points > 0) {
+      records.push({ label: "Most points in a season", value: `${bestSeason.team} — ${Math.round(bestSeason.points).toLocaleString()} (${bestSeason.year})` });
+    }
+    const topLast = Object.entries(lastCount).sort((a, b) => b[1] - a[1])[0];
+    if (topLast && topLast[1] > 1) {
+      records.push({ label: "Most last-place finishes", value: `${topLast[0]} — ${topLast[1]} times` });
+    }
+
+    return {
+      status: "live",
+      data: { champions, lastPlace, records, seasonsCount: completed },
+      needsCredentials: false,
+    };
+  } catch (err: any) {
+    return {
+      status: err?.code === "AUTH" ? "unconfigured" : "error",
+      data: EMPTY_HISTORY,
+      needsCredentials: err?.code === "AUTH" ? true : needsCreds,
+      error: err?.message ?? "Unknown error",
+    };
+  }
+}

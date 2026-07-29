@@ -24,7 +24,7 @@ orange `#FB4F14`; Anton / Barlow Condensed / Barlow type).
 | `/trades` | Editable per-team trade boards (position toggles + player list) |
 | `/votes` | Real vote-casting polls with live tallies |
 | `/vacation` | 2028 destination vote + planning thread |
-| `/history` | Champions by year + all-time records |
+| `/history` | **Champions by year + records, pulled from ESPN league history** |
 
 A global **NFL news ticker** (ESPN's public news feed) runs across the top of
 every page.
@@ -43,6 +43,7 @@ league cookies never reach the browser and CORS is a non-issue.
 | `GET /api/standings` | league `mTeam` + `mStandings` views | cookies (private league) |
 | `GET /api/scoreboard` | league `mScoreboard` view (current week) | cookies (private league) |
 | `GET /api/matchups` | league `mScoreboard` + `mSettings` (full schedule) | cookies (private league) |
+| `GET /api/history` | `leagueHistory` per season → champions + regular-season last place | cookies (private league) |
 | `GET /api/news` | ESPN public NFL news feed | none |
 
 If ESPN data isn't available (no cookies yet, preseason, or a network block),
@@ -154,3 +155,11 @@ src/
   multi-user state.
 - Draft reveal videos and vacation photos are placeholders — drop in real
   YouTube embeds / images when ready.
+- **History & Punishments** now pull the real record from ESPN: each season's
+  champion (final #1) and regular-season last-place finisher (worst playoff
+  seed — playoffs excluded, per the league rule), plus computed records (most
+  titles, most points in a season, most last-place finishes). The punishment
+  *descriptions* (jersey, beer 5K, …) live in `punishmentDescriptions` in
+  `src/lib/leagueData.ts` keyed by year — edit those; the losers come from ESPN.
+  Records ESPN can't compute (worst single-week score, longest playoff drought)
+  were dropped rather than shown as fake data.

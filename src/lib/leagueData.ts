@@ -62,6 +62,15 @@ export const ruleGroups = [
   },
 ];
 
+// The punishment description per season (ESPN can't know these — edit freely).
+// The last-place LOSER for each year is pulled live from ESPN; this map only
+// supplies what the punishment actually was. Keys are the season year.
+export const punishmentDescriptions: Record<string, string> = {
+  "2025": "Wears his least favorite team's jersey every Sunday, all season.",
+  "2024": "Beer 5K — a can every kilometer, all 5.",
+  "2023": "Beer 5K — a can every kilometer, all 5.",
+};
+
 export const punishmentHistory = [
   { year: "2025", loser: "Peter", punishment: "Wears his least favorite team's jersey every Sunday, all season." },
   { year: "2024", loser: TEAMS[6], punishment: "Beer 5K — a can every kilometer, all 5." },
