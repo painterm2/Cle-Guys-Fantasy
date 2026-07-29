@@ -49,7 +49,7 @@ export default function RulesPage() {
 
       {!loaded && <Banner tone="muted">Loading league settings from ESPN…</Banner>}
       {loaded && !meta.live && meta.needsCreds && (
-        <Banner tone="warn">League settings need the ESPN cookies configured (see README) — they'll fill in automatically once connected.</Banner>
+        <Banner tone="warn">League settings fill in automatically from ESPN once the link is set up.</Banner>
       )}
       {loaded && !meta.live && !meta.needsCreds && (
         <Banner tone="muted">Live ESPN settings unavailable{meta.error ? ` (${meta.error})` : ""}.</Banner>

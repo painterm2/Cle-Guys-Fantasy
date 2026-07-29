@@ -236,8 +236,7 @@ function StatusBanner({ loaded, live, needsCreds, error }: { loaded: boolean; li
   if (needsCreds)
     return (
       <Banner tone="warn">
-        Showing a preview bracket. Add your <code>ESPN_S2</code> and <code>ESPN_SWID</code> cookies to pull real matchups &amp; live scores
-        (see the README).
+        Showing a preview bracket — real matchups &amp; live scores appear once the ESPN link is set up.
       </Banner>
     );
   return (

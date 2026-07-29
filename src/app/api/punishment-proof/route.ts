@@ -46,7 +46,7 @@ export async function GET() {
 // POST ?week=N — upload one image (multipart form field "file").
 export async function POST(req: NextRequest) {
   if (!configured()) {
-    return NextResponse.json({ error: "Photo uploads aren't set up yet — connect a Vercel Blob store (see README)." }, { status: 501 });
+    return NextResponse.json({ error: "Photo uploads aren't connected yet." }, { status: 501 });
   }
   const week = Number(new URL(req.url).searchParams.get("week")) || 0;
   const form = await req.formData();

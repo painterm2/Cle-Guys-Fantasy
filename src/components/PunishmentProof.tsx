@@ -130,8 +130,7 @@ export function PunishmentProof({ who = "the loser" }: { who?: string }) {
         </div>
       ) : (
         <div style={{ background: "#fff8f0", border: "1px solid rgba(251,79,20,0.3)", borderRadius: 6, padding: "12px 16px", fontSize: 13.5, color: colors.brown, marginBottom: 18, fontFamily: fonts.condensed, letterSpacing: 0.3 }}>
-          Photo uploads need a <strong>Vercel Blob store</strong> connected (a 1-minute toggle in your Vercel project). See the README →
-          &ldquo;Punishment photo wall&rdquo;.
+          Photo uploads aren&apos;t connected yet — the wall opens once the commish finishes setup.
         </div>
       )}
 

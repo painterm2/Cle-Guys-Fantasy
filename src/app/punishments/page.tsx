@@ -133,9 +133,9 @@ export default function PunishmentsPage() {
 
 function SourceBanner({ loaded, live, needsCreds, error }: { loaded: boolean; live: boolean; needsCreds: boolean; error?: string }) {
   if (!loaded) return <Banner tone="muted">Loading last-place finishers from ESPN…</Banner>;
-  if (live) return <Banner tone="live">● Losers pulled from ESPN (regular-season last place). Descriptions are editable in the code.</Banner>;
+  if (live) return <Banner tone="live">● Losers pulled live from ESPN — regular-season last place, per the rule.</Banner>;
   if (needsCreds)
-    return <Banner tone="warn">Add your ESPN cookies to load the real last-place finishers (see README).</Banner>;
+    return <Banner tone="warn">The real last-place finishers load once the ESPN link is set up.</Banner>;
   return <Banner tone="muted">Live ESPN history unavailable{error ? ` (${error})` : ""}.</Banner>;
 }
 

@@ -158,8 +158,7 @@ function StatusBanner({
   if (needsCreds)
     return (
       <Banner tone="warn">
-        Showing preview standings. To pull the real numbers, add your <code>ESPN_S2</code> and <code>ESPN_SWID</code> cookies (this is a
-        private league). See the README for the 2-minute setup.
+        Showing preview standings — the real numbers appear once the ESPN link is set up.
       </Banner>
     );
   return (

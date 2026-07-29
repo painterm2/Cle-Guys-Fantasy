@@ -30,7 +30,16 @@ export async function GET(_req: NextRequest, { params }: { params: { key: string
     return NextResponse.json({ error: "Unknown store key." }, { status: 404 });
   }
   if (!configured()) {
-    return NextResponse.json({ configured: false, data: null });
+    // Diagnostic: which blob-ish env var NAMES exist (values never exposed).
+    // Helps tell "store not connected" apart from "connected but not redeployed".
+    const candidates = Object.keys(process.env).filter(
+      (k) => k.includes("BLOB") || k.endsWith("_READ_WRITE_TOKEN"),
+    );
+    const hint =
+      candidates.length === 0
+        ? "No blob-related env vars exist in this deployment. Either the store isn't connected to this project (Vercel → project → Storage → Connect), or it was connected after this deployment was built — redeploy to pick it up."
+        : `Found env vars [${candidates.join(", ")}] but none holds a valid blob token (expected a value starting with vercel_blob_rw_). Try disconnecting and reconnecting the store, then redeploy.`;
+    return NextResponse.json({ configured: false, data: null, hint });
   }
   try {
     const { blobs } = await list({ prefix: pathFor(key), limit: 1, token: blobToken() });
@@ -56,7 +65,7 @@ export async function PUT(req: NextRequest, { params }: { params: { key: string 
   }
   if (!configured()) {
     return NextResponse.json(
-      { error: "Shared saving isn't set up yet — connect a Vercel Blob store (see README)." },
+      { error: "Shared saving isn't connected yet." },
       { status: 501 },
     );
   }

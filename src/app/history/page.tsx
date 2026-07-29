@@ -115,7 +115,7 @@ function SourceBanner({ loaded, live, needsCreds, error }: { loaded: boolean; li
   if (!loaded) return <Banner tone="muted">Loading league history from ESPN…</Banner>;
   if (live) return <Banner tone="live">● Pulled live from ESPN league history</Banner>;
   if (needsCreds)
-    return <Banner tone="warn">Add your ESPN cookies to load real champions &amp; records (see README).</Banner>;
+    return <Banner tone="warn">Real champions &amp; records load once the ESPN link is set up.</Banner>;
   return <Banner tone="muted">Live ESPN history unavailable{error ? ` (${error})` : ""}.</Banner>;
 }
 

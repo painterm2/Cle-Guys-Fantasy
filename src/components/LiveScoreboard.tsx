@@ -70,7 +70,7 @@ export function LiveScoreboard({ compact = false }: { compact?: boolean }) {
     body = (
       <Muted>
         {res?.needsCredentials
-          ? "Live scores need ESPN cookies — add ESPN_S2 and ESPN_SWID to enable them (see README)."
+          ? "Live scores connect once the ESPN link is set up."
           : "No live scores available right now — the scoreboard lights up on game day once the season starts."}
       </Muted>
     );

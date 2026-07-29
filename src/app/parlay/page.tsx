@@ -154,7 +154,7 @@ export default function ParlayPage() {
       <SectionLabel>WEEK {wk} PARLAY LEGS</SectionLabel>
 
       {!shared && storeLoaded && (
-        <Banner tone="warn">Shared saving needs the Vercel Blob store connected (see README) — until then, legs only stick in your own browser.</Banner>
+        <Banner tone="warn">Shared saving isn't connected yet — for now, legs only save on this device.</Banner>
       )}
       {error && <div style={{ color: colors.orange, fontSize: 13.5, marginBottom: 12, fontFamily: fonts.condensed }}>{error}</div>}
 

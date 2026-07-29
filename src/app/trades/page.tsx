@@ -48,7 +48,7 @@ export default function TradesPage() {
 
       {!shared && loaded && (
         <div style={{ background: "#fff8f0", border: "1px solid rgba(251,79,20,0.3)", borderRadius: 6, padding: "10px 16px", fontSize: 13.5, color: colors.brown, marginBottom: 16, fontFamily: fonts.condensed, letterSpacing: 0.3 }}>
-          Shared saving needs the Vercel Blob store connected (see README) — until then, board edits only stick in your own browser.
+          Shared saving isn't connected yet — for now, board edits only save on this device.
         </div>
       )}
       {error && <div style={{ color: colors.orange, fontSize: 13.5, marginBottom: 12, fontFamily: fonts.condensed }}>{error}</div>}
