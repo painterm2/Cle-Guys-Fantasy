@@ -21,9 +21,6 @@ export const statCards = [
   { label: "DRAFT ORDER", value: "TBD", sub: "revealed on draft day" },
 ];
 
-// League activity feed on the home page. Add items as things happen.
-export const feedItems: { who: string; what: string; when: string; teamIndex: number | null }[] = [];
-
 // The punishment currently being served. Fill in once it's decided.
 export const currentPunishment = {
   eyebrow: "2026 SEASON",
@@ -82,27 +79,9 @@ export const draftVideos = [
 
 export const POSITIONS = ["QB", "RB", "WR", "TE", "FLEX", "DEF", "K"] as const;
 
-// Trade board posts keyed by team index. Empty = every board starts blank and
-// editable on the Trades page.
-export const tradePosts: Record<
-  number,
-  { looking: string[]; offering: string[]; players: string[]; updated: string }
-> = {};
-
-// Active polls on the Votes page. Add polls as needed, e.g.
-//   { question: "…", closes: "Closes in 4 days",
-//     options: [{ label: "Option A", pct: 0 }, { label: "Option B", pct: 0 }] }
-export const activePolls: {
-  question: string;
-  closes: string;
-  options: { label: string; pct: number }[];
-}[] = [];
-
-// Draft-vacation destination options. Add cities to open a vote.
-export const vacationOptions: { city: string; pitch: string; votes: number }[] = [];
-
-// Planning-thread seed messages (the thread is also editable live on the page).
-export const vacationThread: { who: string; msg: string }[] = [];
+// NOTE: Polls, trade boards, the vacation vote/thread, and the home-page feed
+// are NOT defined here — they're created and edited live on the site and
+// stored server-side (Vercel Blob) so everyone sees the same thing.
 
 // Fallback champions/records, only used if ESPN history can't be reached. The
 // real lists come live from ESPN. Leave empty unless you want a manual fallback.

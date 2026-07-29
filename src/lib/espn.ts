@@ -323,6 +323,7 @@ export interface SeasonEntry {
   year: number;
   team: string;
   owner: string; // the manager — stable even when the team name changes year to year
+  logo: string | null; // that season's team logo, straight from ESPN
 }
 
 export interface HistoryData {
@@ -456,14 +457,14 @@ export async function getLeagueHistory(): Promise<EspnResult<HistoryData>> {
       completed++;
 
       const champOwner = ownerName(champ, members, realBySwid);
-      champions.push({ year: y, team: teamName(champ, `Team ${champ.id}`), owner: champOwner });
+      champions.push({ year: y, team: teamName(champ, `Team ${champ.id}`), owner: champOwner, logo: normalizeLogo(champ.logo) });
       // Tally titles by the manager (stable) rather than the team name (changes).
       titleCount[champOwner] = (titleCount[champOwner] ?? 0) + 1;
 
       const loser = lastPlaceTeam(teams);
       if (loser) {
         const loserOwner = ownerName(loser, members, realBySwid);
-        lastPlace.push({ year: y, team: teamName(loser, `Team ${loser.id}`), owner: loserOwner });
+        lastPlace.push({ year: y, team: teamName(loser, `Team ${loser.id}`), owner: loserOwner, logo: normalizeLogo(loser.logo) });
         lastCount[loserOwner] = (lastCount[loserOwner] ?? 0) + 1;
       }
 

@@ -12,6 +12,7 @@ interface ShameRow {
   year: string;
   loser: string;
   owner?: string;
+  logo?: string | null;
   punishment: string;
 }
 
@@ -36,6 +37,7 @@ export default function PunishmentsPage() {
               year: String(lp.year),
               loser: lp.team,
               owner: lp.owner,
+              logo: lp.logo,
               punishment: punishmentDescriptions[String(lp.year)] ?? NO_PUNISHMENT,
             })),
           );
@@ -102,6 +104,10 @@ export default function PunishmentsPage() {
           style={{ display: "flex", gap: 20, background: colors.white, border: `1px solid ${colors.cardBorder}`, borderRadius: 6, padding: "16px 22px", marginBottom: 12, alignItems: "center" }}
         >
           <div style={{ fontFamily: fonts.display, fontSize: 20, color: colors.orange, width: 56, flex: "none" }}>{p.year}</div>
+          {p.logo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={p.logo} alt={p.loser} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flex: "none", background: "#fff", border: "1px solid rgba(49,29,0,0.12)" }} />
+          )}
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 15 }}>
               {p.loser}

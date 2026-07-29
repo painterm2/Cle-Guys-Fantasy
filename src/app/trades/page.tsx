@@ -1,88 +1,82 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { colors, fonts } from "@/lib/theme";
 import { PageTitle } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
 import { TEAMS, avatarColor } from "@/lib/teams";
-import { POSITIONS, tradePosts } from "@/lib/leagueData";
+import { POSITIONS } from "@/lib/leagueData";
+import { useSharedStore, logFeed, timeAgo } from "@/lib/sharedStore";
+import { useTeamLogos, logoFor } from "@/lib/useTeamLogos";
 
 interface Board {
   looking: string[];
   offering: string[];
   players: string[];
-  updated: string;
-  posted: boolean;
+  updatedAt: string | null; // ISO; null = never posted
 }
 
-function seedBoards(): Board[] {
-  return TEAMS.map((_, i) => {
-    const p = tradePosts[i];
-    return p
-      ? { looking: p.looking, offering: p.offering, players: p.players, updated: p.updated, posted: true }
-      : { looking: [], offering: [], players: [], updated: "No updates yet", posted: false };
-  });
-}
+const emptyBoards = (): Board[] => TEAMS.map(() => ({ looking: [], offering: [], players: [], updatedAt: null }));
 
 export default function TradesPage() {
-  const [boards, setBoards] = useState<Board[]>(seedBoards);
+  const { data: boards, loaded, shared, error, mutate } = useSharedStore<Board[]>("trade-boards", emptyBoards());
+  const logos = useTeamLogos();
   const [editing, setEditing] = useState<number | null>(null);
 
-  // Persist boards locally so edits survive a refresh (a real build would
-  // store these server-side, scoped to each owner's login).
-  useEffect(() => {
-    const saved = localStorage.getItem("cg-trade-boards-v2");
-    if (saved) {
-      try {
-        setBoards(JSON.parse(saved));
-      } catch {
-        /* ignore corrupt cache */
-      }
-    }
-  }, []);
-
-  const persist = (next: Board[]) => {
-    setBoards(next);
-    localStorage.setItem("cg-trade-boards-v2", JSON.stringify(next));
-  };
-
   const update = (idx: number, patch: Partial<Board>) => {
-    const next = boards.map((b, i) => (i === idx ? { ...b, ...patch, updated: "Updated just now", posted: true } : b));
-    persist(next);
+    mutate((cur) => {
+      const base = cur.length === TEAMS.length ? cur : emptyBoards();
+      return base.map((b, i) => (i === idx ? { ...b, ...patch, updatedAt: new Date().toISOString() } : b));
+    });
   };
 
   const toggle = (idx: number, field: "looking" | "offering", code: string) => {
-    const cur = boards[idx][field];
+    const cur = boards[idx]?.[field] ?? [];
     update(idx, { [field]: cur.includes(code) ? cur.filter((c) => c !== code) : [...cur, code] } as Partial<Board>);
+  };
+
+  const finishEditing = (idx: number) => {
+    setEditing(null);
+    logFeed(TEAMS[idx], "updated their trade board.", idx);
   };
 
   return (
     <>
-      <PageTitle sub="Every team gets a board. Update yours any time — everyone else can see it and needle you about it.">
+      <PageTitle sub="Every team gets a board. Update yours any time — everyone in the league sees it and can needle you about it.">
         TRADE BOARD
       </PageTitle>
 
+      {!shared && loaded && (
+        <div style={{ background: "#fff8f0", border: "1px solid rgba(251,79,20,0.3)", borderRadius: 6, padding: "10px 16px", fontSize: 13.5, color: colors.brown, marginBottom: 16, fontFamily: fonts.condensed, letterSpacing: 0.3 }}>
+          Shared saving needs the Vercel Blob store connected (see README) — until then, board edits only stick in your own browser.
+        </div>
+      )}
+      {error && <div style={{ color: colors.orange, fontSize: 13.5, marginBottom: 12, fontFamily: fonts.condensed }}>{error}</div>}
+
       <div className="cg-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 16 }}>
         {TEAMS.map((team, i) => {
-          const b = boards[i];
+          const b: Board = boards[i] ?? { looking: [], offering: [], players: [], updatedAt: null };
+          const posted = b.updatedAt != null;
           const isEditing = editing === i;
           return (
             <div key={team} style={{ background: colors.white, border: `1px solid ${colors.cardBorder}`, borderRadius: 6, padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <Avatar name={team} color={avatarColor(i)} size={38} />
+                <Avatar name={team} color={avatarColor(i)} logo={logoFor(logos, team)} size={38} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{team}</div>
-                  <div style={{ fontFamily: fonts.condensed, fontSize: 11.5, color: colors.brown60, letterSpacing: 0.3 }}>{b.updated}</div>
+                  <div style={{ fontFamily: fonts.condensed, fontSize: 11.5, color: colors.brown60, letterSpacing: 0.3 }}>
+                    {posted ? `Updated ${timeAgo(b.updatedAt!)}` : "No updates yet"}
+                  </div>
                 </div>
                 <button
-                  onClick={() => setEditing(isEditing ? null : i)}
+                  onClick={() => (isEditing ? finishEditing(i) : setEditing(i))}
                   style={{ background: "none", border: "none", fontFamily: fonts.condensed, fontSize: 12, fontWeight: 600, color: colors.orange, cursor: "pointer", flex: "none" }}
                 >
                   {isEditing ? "DONE" : "EDIT"}
                 </button>
               </div>
 
-              {b.posted || isEditing ? (
+              {posted || isEditing ? (
                 <div style={{ background: "#f8f4ea", borderRadius: 5, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
                   <ChipRow label="LOOKING FOR" labelColor={colors.orange}>
                     {POSITIONS.map((code) => {

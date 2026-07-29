@@ -73,21 +73,31 @@ This is a **private** league, so it needs two session cookies.
 
 ---
 
-## Peter's punishment photo wall
+## Shared editing — polls, trade boards, vacation, photo wall
 
-The Punishments page has a shared photo wall where the punished player uploads a
-weekly pic (e.g. wearing the jersey) that **everyone** sees. Images are stored
-in **Vercel Blob** so they're shared across all viewers (not per-browser).
+Everything the league edits on the site is **shared for everyone**, stored in
+**Vercel Blob** (one storage covers it all):
+
+- **Votes & Polls** — anyone can open a poll on the page (+ NEW POLL); tallies
+  are league-wide; one vote per poll per browser. Commish can delete a poll.
+- **Trade Board** — board edits (positions, players) save for the whole league,
+  with real "updated Xh ago" timestamps.
+- **Draft Vacation** — pitch a city (+ PITCH A CITY), vote on destinations, and
+  the planning thread is a real shared thread. Commish can moderate.
+- **Punishment photo wall** — weekly proof pics visible to everyone.
+- **League Pulse** (home page) — feeds itself automatically from the above
+  (new poll opened, board updated, vacation posts).
 
 **Enable it (1 minute, one time):**
 1. In your Vercel project → **Storage** tab → **Create Database** → **Blob** →
    connect it to this project.
 2. Vercel automatically adds a `BLOB_READ_WRITE_TOKEN` env var — nothing to copy.
-3. Redeploy. The uploader goes live; until then it shows a friendly "not set up"
-   note and everything else works normally.
+3. Redeploy. Until then, each page shows a friendly note and edits stick only in
+   your own browser.
 
 Photos are downscaled in the browser before upload. Commish Mode shows a delete
-(×) on each photo for moderation.
+(×) for moderation. The shared docs live under `store/*.json` in Blob; the photo
+wall under `punishment-proof/`.
 
 ## Run it locally
 

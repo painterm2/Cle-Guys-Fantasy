@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { colors, fonts } from "@/lib/theme";
-import { avatarColor, initialsOf } from "@/lib/teams";
 import { LiveScoreboard } from "@/components/LiveScoreboard";
-import { statCards, feedItems, currentPunishment, SEASON_LABEL } from "@/lib/leagueData";
+import { LeagueFeed } from "@/components/LeagueFeed";
+import { statCards, currentPunishment, SEASON_LABEL } from "@/lib/leagueData";
 
 export default function HomePage() {
   return (
@@ -56,49 +56,7 @@ export default function HomePage() {
 
       {/* Feed + right column */}
       <div className="cg-split" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 20 }}>
-        <div style={{ background: colors.white, border: `1px solid ${colors.cardBorder}`, borderRadius: 6, padding: "22px 26px" }}>
-          <div style={{ fontFamily: fonts.display, fontSize: 18, letterSpacing: 0.5, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span>LEAGUE PULSE</span>
-            <span style={{ fontFamily: fonts.condensed, fontSize: 11.5, background: colors.orange, color: "#fff", padding: "3px 9px", borderRadius: 20, letterSpacing: 1 }}>
-              LIVE FEED
-            </span>
-          </div>
-          {feedItems.length === 0 && (
-            <div style={{ border: "2px dashed rgba(49,29,0,0.2)", borderRadius: 6, padding: "24px 20px", textAlign: "center", fontSize: 14, color: colors.brown80 }}>
-              Nothing posted yet — league activity will show up here.
-            </div>
-          )}
-          {feedItems.map((fi, i) => (
-            <div key={i} style={{ display: "flex", gap: 12, padding: "11px 0", borderTop: "1px solid rgba(49,29,0,0.08)" }}>
-              <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  flex: "none",
-                  borderRadius: "50%",
-                  background: fi.teamIndex != null ? avatarColor(fi.teamIndex) : colors.brown,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontFamily: fonts.condensed,
-                  fontWeight: 700,
-                  color: "#fff",
-                  fontSize: 13,
-                }}
-              >
-                {fi.teamIndex != null ? initialsOf(fi.who) : fi.who[0]}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14.5, lineHeight: 1.4 }}>
-                  <strong>{fi.who}</strong> {fi.what}
-                </div>
-                <div style={{ fontFamily: fonts.condensed, fontSize: 12, color: colors.brown70, marginTop: 2, letterSpacing: 0.3 }}>
-                  {fi.when}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <LeagueFeed />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <LiveScoreboard compact />

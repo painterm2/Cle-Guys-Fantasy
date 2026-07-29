@@ -11,6 +11,7 @@ interface Champ {
   year: string;
   team: string;
   owner?: string;
+  logo?: string | null;
 }
 
 export default function HistoryPage() {
@@ -27,7 +28,7 @@ export default function HistoryPage() {
         const json = (await r.json()) as { status: string; data: HistoryData; needsCredentials: boolean; error?: string };
         if (!alive) return;
         if (json.status === "live" && json.data.champions.length > 0) {
-          setChamps(json.data.champions.map((c) => ({ year: String(c.year), team: c.team, owner: c.owner })));
+          setChamps(json.data.champions.map((c) => ({ year: String(c.year), team: c.team, owner: c.owner, logo: c.logo })));
           if (json.data.records.length > 0) setRecords(json.data.records);
           setMeta({ live: true, needsCreds: false });
         } else {
@@ -62,21 +63,30 @@ export default function HistoryPage() {
         {champs.map((c, i) => (
           <div key={c.year} style={{ background: colors.white, border: `1px solid ${colors.cardBorder}`, borderRadius: 6, padding: "18px 20px", textAlign: "center" }}>
             <div style={{ fontFamily: fonts.display, fontSize: 15, color: colors.brown60, marginBottom: 8 }}>{c.year}</div>
-            <div
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: "50%",
-                background: avatarColor(i),
-                margin: "0 auto 10px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 24,
-              }}
-            >
-              🏆
-            </div>
+            {c.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={c.logo}
+                alt={c.team}
+                style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover", margin: "0 auto 10px", display: "block", background: "#fff", border: "1px solid rgba(49,29,0,0.12)" }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: "50%",
+                  background: avatarColor(i),
+                  margin: "0 auto 10px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 24,
+                }}
+              >
+                🏆
+              </div>
+            )}
             <div style={{ fontWeight: 700, fontSize: 15 }}>{c.team}</div>
             {c.owner && <div style={{ fontSize: 12.5, color: colors.brown60, marginTop: 3 }}>{c.owner}</div>}
           </div>
