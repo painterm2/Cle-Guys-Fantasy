@@ -85,17 +85,20 @@ export function Sidebar() {
       >
         <div
           style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
             padding: "0 4px 16px",
             borderBottom: `2px solid ${colors.orange}`,
             marginBottom: 16,
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-mark.svg" alt="CG" style={{ width: 38, height: 38, borderRadius: 8, display: "block", marginBottom: 12 }} />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Cleveland Guys" style={{ width: "88%", display: "block", margin: "0 auto" }} />
-          <div style={{ fontFamily: fonts.condensed, fontSize: 11.5, letterSpacing: 1.5, color: colors.orange, fontWeight: 600, textAlign: "center", marginTop: 8 }}>
-            EST. 2019 · 10 TEAMS
+          <img src="/logo-mark.svg" alt="Cleveland Guys" style={{ width: 42, height: 42, borderRadius: 8, display: "block", flex: "none" }} />
+          <div style={{ fontFamily: fonts.condensed, fontSize: 11.5, letterSpacing: 1.5, color: colors.orange, fontWeight: 600, lineHeight: 1.5 }}>
+            EST. 2019
+            <br />
+            10 TEAMS
           </div>
         </div>
 
