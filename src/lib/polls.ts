@@ -1,11 +1,23 @@
+import { ownerRealNames } from "./leagueData";
+
 // Shared poll types — used by the Votes page and any page that syncs a poll
 // (e.g. the 2028 In-Person Draft Location page).
+//
+// Voting is by OWNER, not by browser: each manager picks who they are once,
+// and a poll holds one ballot per owner (league-wide, whatever device they
+// vote from).
+//
+// ANONYMITY: the owner -> pick mapping (`ballots`) never leaves the server.
+// Browsers receive only vote counts and the list of who has voted (not what
+// they picked). The commish reveals the mapping through a separate endpoint.
 
 export interface PollOption {
+  /** Stable id so ballots survive options being added/removed. */
+  id: string;
   label: string;
-  votes: number;
 }
 
+/** A poll as the browser sees it — counts only, no ballot mapping. */
 export interface Poll {
   id: string;
   question: string;
@@ -14,7 +26,38 @@ export interface Poll {
   createdAt: string;
   /** When true, anyone can append their own option to the poll. */
   allowAdditions?: boolean;
+  /** votes per option, aligned to `options`. Server-computed. */
+  counts?: number[];
+  /** owners who have cast a ballot (not what they picked). Server-computed. */
+  votedBy?: string[];
+  /** owner -> option id. Server-only; present solely in commish reveals. */
+  ballots?: Record<string, string>;
 }
 
-/** localStorage key marking that this browser already voted on a poll. */
-export const pollVotedKey = (id: string) => `cg-voted-${id}`;
+/** The league's managers, from the team->owner map (deduped, alphabetical). */
+export const OWNERS: string[] = [...new Set(Object.values(ownerRealNames))].sort();
+
+const OWNER_KEY = "cg-owner-name";
+
+export function getMyOwner(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(OWNER_KEY) ?? "";
+}
+
+export function setMyOwner(name: string) {
+  if (name) localStorage.setItem(OWNER_KEY, name);
+  else localStorage.removeItem(OWNER_KEY);
+}
+
+export const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+
+/** Counts per option index, derived from a ballots map. */
+export function countsFrom(options: PollOption[], ballots: Record<string, string> | undefined): number[] {
+  const byId = new Map(options.map((o, i) => [o.id, i]));
+  const counts = options.map(() => 0);
+  for (const optId of Object.values(ballots ?? {})) {
+    const i = byId.get(optId);
+    if (i != null) counts[i]++;
+  }
+  return counts;
+}

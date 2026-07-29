@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { list, put } from "@vercel/blob";
 import { blobToken } from "@/lib/blob";
+import { sanitize, mergeBallots, readPolls } from "@/lib/pollStore";
+import type { Poll } from "@/lib/polls";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +53,11 @@ export async function GET(_req: NextRequest, { params }: { params: { key: string
     const res = await fetch(`${blobs[0].url}?v=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`blob fetch ${res.status}`);
     const data = await res.json();
+    // Polls: never ship the owner -> pick mapping to a browser. Counts and the
+    // list of who has voted are public; what they picked is not.
+    if (key === "polls" && Array.isArray(data)) {
+      return NextResponse.json({ configured: true, data: sanitize(data as Poll[]) });
+    }
     return NextResponse.json({ configured: true, data });
   } catch (err: any) {
     return NextResponse.json({ configured: true, data: null, error: err?.message ?? "read failed" }, { status: 500 });
@@ -75,6 +82,16 @@ export async function PUT(req: NextRequest, { params }: { params: { key: string 
   } catch {
     return NextResponse.json({ error: "Body must be JSON." }, { status: 400 });
   }
+  // Clients edit polls without ever holding the ballots — re-attach them from
+  // the stored copy so a poll edit can't wipe (or forge) votes.
+  if (key === "polls" && Array.isArray(body)) {
+    try {
+      body = mergeBallots(body as Poll[], await readPolls());
+    } catch (err: any) {
+      return NextResponse.json({ error: err?.message ?? "merge failed" }, { status: 500 });
+    }
+  }
+
   const text = JSON.stringify(body);
   if (text.length > MAX_BYTES) {
     return NextResponse.json({ error: "Document too large." }, { status: 413 });

@@ -5,6 +5,7 @@ import { colors, fonts } from "@/lib/theme";
 import { PageTitle, SectionLabel, EmptyState } from "@/components/ui";
 import { useCommish } from "@/components/CommishProvider";
 import { PollCard } from "@/components/PollCard";
+import { OwnerPicker, useMyOwner } from "@/components/OwnerPicker";
 import { useSharedStore, logFeed } from "@/lib/sharedStore";
 import type { Poll } from "@/lib/polls";
 
@@ -21,7 +22,8 @@ const VOTED_KEY = "cg-vacation-voted-v3";
 export default function VacationPage() {
   const { commish } = useCommish();
   const { data, loaded, shared, error, mutate } = useSharedStore<VacationData>("vacation", EMPTY);
-  const { data: polls, mutate: mutatePolls } = useSharedStore<Poll[]>("polls", []);
+  const { data: polls, mutate: mutatePolls, refresh: refreshPolls } = useSharedStore<Poll[]>("polls", []);
+  const [owner, setOwner] = useMyOwner();
   const [draft, setDraft] = useState("");
   const [name, setName] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -139,7 +141,8 @@ export default function VacationPage() {
       {linkedPoll && (
         <>
           <SectionLabel>LOCATION VOTE</SectionLabel>
-          <PollCard poll={linkedPoll} commish={commish} onMutate={mutatePolls} />
+          <OwnerPicker owner={owner} onChange={setOwner} />
+          <PollCard poll={linkedPoll} commish={commish} voter={owner} onMutate={mutatePolls} onVoted={refreshPolls} />
         </>
       )}
 

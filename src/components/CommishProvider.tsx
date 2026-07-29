@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 // NOTE: this is a light gate to keep normal users out of admin controls, not
 // real security — the password lives in the client bundle. For true access
 // control, move commish actions behind a server-side login.
-const COMMISH_PASSWORD = "IAMCOMMISH";
+export const COMMISH_PASSWORD = "IAMCOMMISH";
 
 interface CommishCtx {
   commish: boolean;

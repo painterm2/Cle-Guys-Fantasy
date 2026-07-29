@@ -98,7 +98,17 @@ export function useSharedStore<T>(key: StoreKey, initial: T) {
     [key],
   );
 
-  return { data, loaded, shared, error, mutate };
+  /** Re-read the shared document (after a server-side write, e.g. a vote). */
+  const refresh = useCallback(async () => {
+    try {
+      const { data: remote } = await fetchStore<T>(key);
+      if (remote != null) setData(remote);
+    } catch {
+      /* leave current state in place */
+    }
+  }, [key]);
+
+  return { data, loaded, shared, error, mutate, refresh };
 }
 
 // --- League feed -----------------------------------------------------------

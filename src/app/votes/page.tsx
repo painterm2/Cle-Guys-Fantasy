@@ -5,12 +5,14 @@ import { colors, fonts } from "@/lib/theme";
 import { PageTitle, EmptyState, SectionLabel } from "@/components/ui";
 import { useCommish } from "@/components/CommishProvider";
 import { PollCard } from "@/components/PollCard";
+import { OwnerPicker, useMyOwner } from "@/components/OwnerPicker";
 import { useSharedStore, logFeed } from "@/lib/sharedStore";
-import type { Poll } from "@/lib/polls";
+import { newId, type Poll } from "@/lib/polls";
 
 export default function VotesPage() {
   const { commish } = useCommish();
-  const { data: polls, loaded, shared, error, mutate } = useSharedStore<Poll[]>("polls", []);
+  const { data: polls, loaded, shared, error, mutate, refresh } = useSharedStore<Poll[]>("polls", []);
+  const [owner, setOwner] = useMyOwner();
   const [showForm, setShowForm] = useState(false);
 
   const addPoll = (question: string, options: string[], closes: string, allowAdditions: boolean) => {
@@ -18,7 +20,7 @@ export default function VotesPage() {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       question,
       closes: closes || undefined,
-      options: options.map((label) => ({ label, votes: 0 })),
+      options: options.map((label) => ({ id: newId(), label })),
       createdAt: new Date().toISOString(),
       allowAdditions: allowAdditions || undefined,
     };
@@ -30,7 +32,7 @@ export default function VotesPage() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
-        <PageTitle sub={shared ? "Votes are shared — everyone sees the same tallies." : undefined}>VOTES &amp; POLLS</PageTitle>
+        <PageTitle sub="One vote per manager. Tallies are public — who voted for what is not.">VOTES &amp; POLLS</PageTitle>
         <button
           onClick={() => setShowForm((s) => !s)}
           style={{ background: colors.orange, color: "#fff", border: "none", fontFamily: fonts.condensed, fontWeight: 600, fontSize: 13.5, letterSpacing: 0.5, padding: "10px 18px", borderRadius: 4, cursor: "pointer", flex: "none" }}
@@ -46,6 +48,8 @@ export default function VotesPage() {
       )}
       {error && <div style={{ color: colors.orange, fontSize: 13.5, marginBottom: 12, fontFamily: fonts.condensed }}>{error}</div>}
 
+      <OwnerPicker owner={owner} onChange={setOwner} />
+
       {showForm && <NewPollForm onSubmit={addPoll} />}
 
       {loaded && polls.length === 0 && !showForm && (
@@ -53,7 +57,7 @@ export default function VotesPage() {
       )}
 
       {polls.map((poll) => (
-        <PollCard key={poll.id} poll={poll} commish={commish} onMutate={mutate} />
+        <PollCard key={poll.id} poll={poll} commish={commish} voter={owner} onMutate={mutate} onVoted={refresh} />
       ))}
     </>
   );
