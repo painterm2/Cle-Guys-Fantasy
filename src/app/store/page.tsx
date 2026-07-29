@@ -47,7 +47,7 @@ export default function StorePage() {
 
   return (
     <>
-      <PageTitle sub="League merch, printed by Printful. Add what you want, check out, then send the commish your order screenshot — he places the order and Venmo requests you.">
+      <PageTitle sub="League merch, printed by Printful. Prices are rough estimates — add what you want, check out, then send the commish your order screenshot. He places the order and Venmo requests you the real total.">
         LEAGUE STORE
       </PageTitle>
 
@@ -70,7 +70,7 @@ export default function StorePage() {
                 <div style={{ flex: 1, minWidth: 160 }}>
                   <div style={{ fontWeight: 600, fontSize: 14.5 }}>{l.name}</div>
                   <div style={{ fontFamily: fonts.condensed, fontSize: 12.5, color: colors.brown70, letterSpacing: 0.3 }}>
-                    {[l.size, l.color].filter(Boolean).join(" · ") || "One size"} · {money(l.price)} each
+                    {[l.size, l.color].filter(Boolean).join(" · ") || "One size"} · ~{money(l.price)} each
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flex: "none" }}>
@@ -94,12 +94,12 @@ export default function StorePage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginTop: 16, paddingTop: 14, borderTop: `2px solid ${colors.orange}`, flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontFamily: fonts.condensed, fontSize: 12, letterSpacing: 1.5, color: colors.brown90, fontWeight: 700 }}>
-                  SUBTOTAL ({cart.count} {cart.count === 1 ? "item" : "items"})
+                  ESTIMATED TOTAL ({cart.count} {cart.count === 1 ? "item" : "items"})
                 </div>
-                <div style={{ fontSize: 12.5, color: colors.brown70 }}>Shipping &amp; tax get added to the Venmo request.</div>
+                <div style={{ fontSize: 12.5, color: colors.brown70 }}>Rough estimate — the commish confirms the real total (plus shipping &amp; tax) when he orders.</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={{ fontFamily: fonts.display, fontSize: 26 }}>{money(cart.subtotal)}</div>
+                <div style={{ fontFamily: fonts.display, fontSize: 26 }}>~{money(cart.subtotal)}</div>
                 <button
                   onClick={() => {
                     setStep("checkout");
@@ -210,7 +210,10 @@ function ProductCard({
           {product.blurb && <div style={{ fontSize: 13.5, color: colors.brown80, lineHeight: 1.45, marginTop: 3 }}>{product.blurb}</div>}
         </div>
 
-        <div style={{ fontFamily: fonts.display, fontSize: 21, marginTop: "auto" }}>{money(product.price)}</div>
+        <div style={{ marginTop: "auto", display: "flex", alignItems: "baseline", gap: 6 }}>
+          <span style={{ fontFamily: fonts.display, fontSize: 21 }}>~{money(product.price)}</span>
+          <span style={{ fontFamily: fonts.condensed, fontSize: 11.5, letterSpacing: 0.8, color: colors.brown60 }}>APPROX.</span>
+        </div>
 
         <div style={{ display: "flex", gap: 8 }}>
           {product.sizes && (
@@ -348,11 +351,11 @@ function CheckoutForm({
             </div>
           ))}
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 12, borderTop: `2px solid ${colors.orange}`, alignItems: "baseline" }}>
-            <div style={{ fontFamily: fonts.condensed, fontSize: 12.5, letterSpacing: 1.2, fontWeight: 700 }}>SUBTOTAL</div>
-            <div style={{ fontFamily: fonts.display, fontSize: 24 }}>{money(subtotal)}</div>
+            <div style={{ fontFamily: fonts.condensed, fontSize: 12.5, letterSpacing: 1.2, fontWeight: 700 }}>ESTIMATED TOTAL</div>
+            <div style={{ fontFamily: fonts.display, fontSize: 24 }}>~{money(subtotal)}</div>
           </div>
           <div style={{ fontSize: 12.5, color: colors.brown70, marginTop: 8, lineHeight: 1.45 }}>
-            Shipping and tax aren&apos;t included — the commish adds them to the Venmo request once the real order is placed.
+            Prices are rough estimates and don&apos;t include shipping or tax. The commish confirms the real total in the Venmo request once he places the order.
           </div>
         </div>
       </div>
@@ -381,8 +384,8 @@ function Receipt({ order, onDone }: { order: PlacedOrder; onDone: () => void }) 
           📸 SEND THIS SCREENSHOT TO {COMMISH_CONTACT.toUpperCase()}
         </div>
         <div style={{ fontSize: 14.5, opacity: 0.95, lineHeight: 1.45 }}>
-          Screenshot this whole page and text it over. He&apos;ll place the Printful order and Venmo request you for the
-          total plus shipping. Nothing was charged here.
+          Screenshot this whole page and text it over. He&apos;ll place the Printful order and Venmo request you once he
+          knows the real total. Nothing was charged here.
         </div>
       </div>
 
@@ -404,7 +407,7 @@ function Receipt({ order, onDone }: { order: PlacedOrder; onDone: () => void }) 
             <div>
               <strong>{l.qty}× {l.name}</strong>
               <div style={{ fontFamily: fonts.condensed, fontSize: 12.5, color: colors.brown70, letterSpacing: 0.3 }}>
-                {[l.size && `Size ${l.size}`, l.color].filter(Boolean).join(" · ") || "One size"} · {money(l.price)} each
+                {[l.size && `Size ${l.size}`, l.color].filter(Boolean).join(" · ") || "One size"} · ~{money(l.price)} each
               </div>
             </div>
             <div style={{ flex: "none", fontWeight: 700 }}>{money(l.qty * l.price)}</div>
@@ -412,11 +415,11 @@ function Receipt({ order, onDone }: { order: PlacedOrder; onDone: () => void }) 
         ))}
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 14, paddingTop: 12, borderTop: `2px solid ${colors.orange}` }}>
-          <div style={{ fontFamily: fonts.condensed, fontSize: 13, letterSpacing: 1.2, fontWeight: 700 }}>SUBTOTAL</div>
-          <div style={{ fontFamily: fonts.display, fontSize: 26 }}>{money(order.subtotal)}</div>
+          <div style={{ fontFamily: fonts.condensed, fontSize: 13, letterSpacing: 1.2, fontWeight: 700 }}>ESTIMATED TOTAL</div>
+          <div style={{ fontFamily: fonts.display, fontSize: 26 }}>~{money(order.subtotal)}</div>
         </div>
         <div style={{ fontSize: 12.5, color: colors.brown70, marginTop: 4, marginBottom: 18 }}>
-          + shipping &amp; tax, added to the Venmo request.
+          Estimate only — the commish confirms the actual total, plus shipping &amp; tax, in the Venmo request.
         </div>
 
         <SectionLabel>SHIP TO</SectionLabel>

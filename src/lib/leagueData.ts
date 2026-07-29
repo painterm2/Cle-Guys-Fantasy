@@ -123,7 +123,7 @@ export const storeProducts: StoreProduct[] = [
     id: "cle-guys-shirt",
     name: "CLE Guys Shirt",
     blurb: "Comfort Colors heavyweight garment-dyed cotton. Embroidered CG on the front, full logo across the back.",
-    price: 0, // TODO: set the price
+    price: 30, // approximate — actual total confirmed at order time
     images: ["/store/cle-guys-shirt-front.png", "/store/cle-guys-shirt-back.png"],
     sizes: ["S", "M", "L", "XL", "XXL"],
   },
@@ -131,7 +131,7 @@ export const storeProducts: StoreProduct[] = [
     id: "cle-guys-socks",
     name: "CLE Guys Socks",
     blurb: "White ribbed crew socks with the CG mark embroidered on the cuff.",
-    price: 0, // TODO: set the price
+    price: 30, // approximate — actual total confirmed at order time
     images: ["/store/cle-guys-socks.png"],
     sizes: ["S/M", "M/L"],
   },
@@ -139,7 +139,7 @@ export const storeProducts: StoreProduct[] = [
     id: "cle-guys-dad-hat",
     name: "CLE Guys Dad Hat",
     blurb: "Black dad hat with the full Cleveland Guys logo embroidered across the front. One size fits all.",
-    price: 0, // TODO: set the price
+    price: 30, // approximate — actual total confirmed at order time
     images: ["/store/cle-guys-dad-hat.png"],
   },
 ];
