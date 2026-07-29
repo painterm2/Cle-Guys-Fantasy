@@ -60,9 +60,8 @@ export function Sidebar() {
         >
           ☰
         </button>
-        <span style={{ fontFamily: fonts.display, fontSize: 17, letterSpacing: 0.3 }}>
-          CLEVELAND GUYS
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Cleveland Guys" style={{ height: 40, display: "block" }} />
         <span style={{ width: 24 }} />
       </div>
 
@@ -86,39 +85,15 @@ export function Sidebar() {
       >
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "0 8px 20px",
+            padding: "0 4px 16px",
             borderBottom: `2px solid ${colors.orange}`,
             marginBottom: 16,
           }}
         >
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              flex: "none",
-              borderRadius: "50%",
-              background: colors.orange,
-              border: `3px solid ${colors.cream}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: fonts.display,
-              fontSize: 19,
-              color: colors.brown,
-            }}
-          >
-            CG
-          </div>
-          <div>
-            <div style={{ fontFamily: fonts.display, fontSize: 18, lineHeight: 1.05, color: colors.cream, letterSpacing: 0.3 }}>
-              CLEVELAND GUYS
-            </div>
-            <div style={{ fontFamily: fonts.condensed, fontSize: 11.5, letterSpacing: 1.5, color: colors.orange, fontWeight: 600 }}>
-              EST. 2019 · 10 TEAMS
-            </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="Cleveland Guys" style={{ width: "100%", display: "block" }} />
+          <div style={{ fontFamily: fonts.condensed, fontSize: 11.5, letterSpacing: 1.5, color: colors.orange, fontWeight: 600, textAlign: "center", marginTop: 6 }}>
+            EST. 2019 · 10 TEAMS
           </div>
         </div>
 

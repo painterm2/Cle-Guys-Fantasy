@@ -29,11 +29,8 @@ export default function HomePage() {
           <div style={{ fontFamily: fonts.condensed, fontSize: 13, letterSpacing: 3, color: colors.orange, fontWeight: 700, marginBottom: 8 }}>
             {SEASON_LABEL}
           </div>
-          <div style={{ fontFamily: fonts.display, fontSize: 52, lineHeight: 1, color: colors.cream, marginBottom: 12 }}>
-            CLEVELAND GUYS
-            <br />
-            FANTASY FOOTBALL
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="Cleveland Guys" style={{ width: "min(400px, 90%)", display: "block", marginBottom: 14 }} />
           <div style={{ fontFamily: fonts.body, fontSize: 17, color: colors.creamMuted, maxWidth: 520 }}>
             10 teams. 7 seasons of history. Unfinished business. Home base for rules, records, trades, and whatever
             punishment we land on next.
