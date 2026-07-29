@@ -28,13 +28,28 @@ export const currentPunishment = {
   sub: "",
 };
 
-// League rules. Edit the text, add/remove rules and groups as needed.
+// House rules — the league's own rules that ESPN doesn't know about. The
+// mechanical settings (roster, scoring, playoffs, waivers, trades) pull live
+// from ESPN's League Settings on the Rules page; edit only house rules here.
 export const ruleGroups = [
   {
     title: "PUNISHMENT",
     rules: [
       { num: "1.1", text: "The last-place finisher in the REGULAR SEASON (playoffs not included) serves the punishment the following season." },
       { num: "1.2", text: "Punishment is chosen by league vote before Week 1." },
+    ],
+  },
+  {
+    title: "WEEKLY STAKES",
+    rules: [
+      {
+        num: "2.1",
+        text: "$10 fine for not setting your lineup. Keeps everyone paying attention weekly — and it's kept people (even the commish) from punting their way out of the playoffs.",
+      },
+      {
+        num: "2.2",
+        text: "Lowest points each week buys the group parlay ($5–$10). Everyone else picks a leg, and any winnings get split between everyone except that week's lowest scorer.",
+      },
     ],
   },
 ];

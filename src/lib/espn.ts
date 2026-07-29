@@ -513,3 +513,105 @@ export async function getLeagueHistory(): Promise<EspnResult<HistoryData>> {
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// League settings → the Rules page. Pulls mSettings and renders the real
+// configuration (roster, scoring, playoffs, waivers, trades) so the rules
+// on the site always match ESPN.
+// ---------------------------------------------------------------------------
+
+const SLOT_NAMES: Record<number, string> = {
+  0: "QB", 1: "TQB", 2: "RB", 3: "RB/WR", 4: "WR", 5: "WR/TE", 6: "TE",
+  7: "OP", 16: "D/ST", 17: "K", 20: "Bench", 21: "IR", 23: "FLEX",
+};
+
+export interface SettingsGroup {
+  title: string;
+  rules: { num: string; text: string }[];
+}
+
+function fmtSlots(counts: Record<string, number> | undefined, bench: boolean): string {
+  if (!counts) return "";
+  const parts: string[] = [];
+  for (const [slot, n] of Object.entries(counts)) {
+    const id = Number(slot);
+    const isBench = id === 20 || id === 21;
+    if (!n || isBench !== bench) continue;
+    parts.push(`${n} ${SLOT_NAMES[id] ?? `Slot ${id}`}`);
+  }
+  return parts.join(", ");
+}
+
+export async function getLeagueSettings(): Promise<EspnResult<SettingsGroup[]>> {
+  const needsCreds = !hasCredentials();
+  try {
+    const json = await fetchLeague(["mSettings"]);
+    const s = json?.settings ?? {};
+    const groups: SettingsGroup[] = [];
+    const push = (title: string, texts: string[]) => {
+      if (texts.length === 0) return;
+      const gi = groups.length + 1;
+      groups.push({ title, rules: texts.map((text, i) => ({ num: `${gi}.${i + 1}`, text })) });
+    };
+
+    // Roster
+    const starters = fmtSlots(s.rosterSettings?.lineupSlotCounts, false);
+    const benchStr = fmtSlots(s.rosterSettings?.lineupSlotCounts, true);
+    const roster: string[] = [];
+    if (starters) roster.push(`Starting lineup: ${starters}.`);
+    if (benchStr) roster.push(`Reserves: ${benchStr}.`);
+    if (s.size) roster.push(`${s.size}-team league, full re-draft each season.`);
+    push("ROSTER", roster);
+
+    // Scoring — PPR value comes from stat 53 (receptions)
+    const scoring: string[] = [];
+    const items: any[] = s.scoringSettings?.scoringItems ?? [];
+    const rec = items.find((it) => it.statId === 53);
+    const recPts = rec?.pointsOverrides?.[16] ?? rec?.points;
+    if (recPts != null) {
+      const label = recPts === 1 ? "Full PPR" : recPts === 0.5 ? "Half PPR" : recPts === 0 ? "Standard (no PPR)" : `${recPts} pts per reception`;
+      scoring.push(`${label} scoring.`);
+    }
+    scoring.push("Head-to-head points, per ESPN scoring settings.");
+    push("SCORING", scoring);
+
+    // Schedule & playoffs
+    const sched = s.scheduleSettings ?? {};
+    const schedule: string[] = [];
+    if (sched.matchupPeriodCount) schedule.push(`${sched.matchupPeriodCount}-week regular season.`);
+    if (sched.playoffTeamCount) schedule.push(`${sched.playoffTeamCount} teams make the playoffs.`);
+    if (sched.playoffMatchupPeriodLength) {
+      schedule.push(`Playoff rounds are ${sched.playoffMatchupPeriodLength} week${sched.playoffMatchupPeriodLength > 1 ? "s" : ""} each.`);
+    }
+    push("SCHEDULE & PLAYOFFS", schedule);
+
+    // Waivers
+    const acq = s.acquisitionSettings ?? {};
+    const waivers: string[] = [];
+    if (acq.isUsingAcquisitionBudget && acq.acquisitionBudget) {
+      waivers.push(`FAAB waivers — $${acq.acquisitionBudget} budget per season.`);
+    } else if (acq.acquisitionType) {
+      waivers.push(`Waiver claims process via ESPN (${String(acq.acquisitionType).replace(/_/g, " ").toLowerCase()}).`);
+    }
+    push("WAIVERS", waivers);
+
+    // Trades
+    const tr = s.tradeSettings ?? {};
+    const trades: string[] = [];
+    if (tr.deadlineDate) {
+      trades.push(`Trade deadline: ${new Date(tr.deadlineDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.`);
+    }
+    if (tr.vetoVotesRequired) trades.push(`${tr.vetoVotesRequired} votes required to veto a trade.`);
+    if (tr.revisionHours) trades.push(`Trades process after a ${tr.revisionHours}-hour review window.`);
+    push("TRADES", trades);
+
+    return { status: "live", data: groups, needsCredentials: false };
+  } catch (err: any) {
+    return {
+      status: err?.code === "AUTH" ? "unconfigured" : "error",
+      data: [],
+      needsCredentials: err?.code === "AUTH" ? true : needsCreds,
+      error: err?.message ?? "Unknown error",
+    };
+  }
+}
