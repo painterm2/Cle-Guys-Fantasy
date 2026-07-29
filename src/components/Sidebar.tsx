@@ -91,8 +91,10 @@ export function Sidebar() {
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Cleveland Guys" style={{ width: "100%", display: "block" }} />
-          <div style={{ fontFamily: fonts.condensed, fontSize: 11.5, letterSpacing: 1.5, color: colors.orange, fontWeight: 600, textAlign: "center", marginTop: 6 }}>
+          <img src="/logo-mark.svg" alt="CG" style={{ width: 38, height: 38, borderRadius: 8, display: "block", marginBottom: 12 }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="Cleveland Guys" style={{ width: "88%", display: "block", margin: "0 auto" }} />
+          <div style={{ fontFamily: fonts.condensed, fontSize: 11.5, letterSpacing: 1.5, color: colors.orange, fontWeight: 600, textAlign: "center", marginTop: 8 }}>
             EST. 2019 · 10 TEAMS
           </div>
         </div>

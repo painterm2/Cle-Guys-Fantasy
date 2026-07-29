@@ -25,13 +25,13 @@ export default function HomePage() {
             background: "repeating-linear-gradient(135deg, rgba(245,239,228,0.03) 0 14px, transparent 14px 28px)",
           }}
         />
-        <div style={{ position: "relative" }}>
-          <div style={{ fontFamily: fonts.condensed, fontSize: 13, letterSpacing: 3, color: colors.orange, fontWeight: 700, marginBottom: 8 }}>
+        <div style={{ position: "relative", textAlign: "center" }}>
+          <div style={{ fontFamily: fonts.condensed, fontSize: 13, letterSpacing: 3, color: colors.orange, fontWeight: 700, marginBottom: 10 }}>
             {SEASON_LABEL}
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Cleveland Guys" style={{ width: "min(400px, 90%)", display: "block", marginBottom: 14 }} />
-          <div style={{ fontFamily: fonts.body, fontSize: 17, color: colors.creamMuted, maxWidth: 520 }}>
+          <img src="/logo.svg" alt="Cleveland Guys" style={{ width: "min(400px, 90%)", display: "block", margin: "0 auto 16px" }} />
+          <div style={{ fontFamily: fonts.body, fontSize: 17, color: colors.creamMuted, maxWidth: 520, margin: "0 auto" }}>
             10 teams. 7 seasons of history. Unfinished business. Home base for rules, records, trades, and whatever
             punishment we land on next.
           </div>
