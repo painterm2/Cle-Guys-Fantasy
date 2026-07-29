@@ -11,6 +11,7 @@ const NAV: { href: string; label: string }[] = [
   { href: "/rules", label: "Rules" },
   { href: "/punishments", label: "Punishments" },
   { href: "/standings", label: "Standings" },
+  { href: "/matchups", label: "Matchups" },
   { href: "/draft", label: "Draft" },
   { href: "/trades", label: "Trade Board" },
   { href: "/votes", label: "Votes & Polls" },
@@ -20,8 +21,30 @@ const NAV: { href: string; label: string }[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { commish, toggle } = useCommish();
+  const { commish, enable, disable } = useCommish();
   const [open, setOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pw, setPw] = useState("");
+  const [pwError, setPwError] = useState(false);
+
+  const onToggle = () => {
+    if (commish) {
+      disable();
+    } else {
+      setPw("");
+      setPwError(false);
+      setPwOpen(true);
+    }
+  };
+
+  const submitPw = () => {
+    if (enable(pw)) {
+      setPwOpen(false);
+      setPw("");
+    } else {
+      setPwError(true);
+    }
+  };
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -152,7 +175,7 @@ export function Sidebar() {
           <div
             role="switch"
             aria-checked={commish}
-            onClick={toggle}
+            onClick={onToggle}
             style={{
               width: 38,
               height: 20,
@@ -178,6 +201,64 @@ export function Sidebar() {
           </div>
         </div>
       </div>
+
+      {pwOpen && (
+        <div
+          onClick={() => setPwOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(49,29,0,0.55)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 8, padding: "26px 28px", width: 340, maxWidth: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}
+          >
+            <div style={{ fontFamily: fonts.display, fontSize: 22, marginBottom: 6, color: colors.brown }}>COMMISH ACCESS</div>
+            <div style={{ fontSize: 13.5, color: colors.brown80, marginBottom: 16, lineHeight: 1.4 }}>
+              Enter the commissioner password to unlock admin controls.
+            </div>
+            <input
+              autoFocus
+              type="password"
+              value={pw}
+              onChange={(e) => {
+                setPw(e.target.value);
+                setPwError(false);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && submitPw()}
+              placeholder="Password"
+              style={{
+                width: "100%",
+                fontSize: 15,
+                padding: "10px 12px",
+                borderRadius: 4,
+                border: `1px solid ${pwError ? colors.orange : colors.cardBorder}`,
+                outline: "none",
+                fontFamily: fonts.body,
+                marginBottom: pwError ? 6 : 16,
+                boxSizing: "border-box",
+              }}
+            />
+            {pwError && (
+              <div style={{ color: colors.orange, fontSize: 12.5, marginBottom: 14, fontFamily: fonts.condensed, letterSpacing: 0.3 }}>
+                Wrong password — try again.
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setPwOpen(false)}
+                style={{ background: "none", border: `1px solid ${colors.cardBorder}`, color: colors.brown80, fontFamily: fonts.condensed, fontWeight: 600, fontSize: 13.5, padding: "9px 16px", borderRadius: 4, cursor: "pointer" }}
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={submitPw}
+                style={{ background: colors.brown, border: "none", color: colors.cream, fontFamily: fonts.condensed, fontWeight: 600, fontSize: 13.5, padding: "9px 18px", borderRadius: 4, cursor: "pointer" }}
+              >
+                UNLOCK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

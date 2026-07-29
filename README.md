@@ -19,6 +19,7 @@ orange `#FB4F14`; Anton / Barlow Condensed / Barlow type).
 | `/rules` | Rule groups; **Commish Mode** reveals add/edit affordances |
 | `/punishments` | Current sentence + "Hall of Shame" history |
 | `/standings` | **Live ESPN standings** (with graceful preview fallback) + live scoreboard |
+| `/matchups` | **Live matchups & full schedule** — browse any week, live/final scores, records |
 | `/draft` | Current draft order + per-year reveal-video grid |
 | `/trades` | Editable per-team trade boards (position toggles + player list) |
 | `/votes` | Real vote-casting polls with live tallies |
@@ -41,6 +42,7 @@ league cookies never reach the browser and CORS is a non-issue.
 |----------|--------|------|
 | `GET /api/standings` | league `mTeam` + `mStandings` views | cookies (private league) |
 | `GET /api/scoreboard` | league `mScoreboard` view (current week) | cookies (private league) |
+| `GET /api/matchups` | league `mScoreboard` + `mSettings` (full schedule) | cookies (private league) |
 | `GET /api/news` | ESPN public NFL news feed | none |
 
 If ESPN data isn't available (no cookies yet, preseason, or a network block),
@@ -124,9 +126,13 @@ src/
 
 ## Notes & next steps
 
-- **Commish Mode** (sidebar toggle) is a client-side stand-in for real
-  admin/owner auth. It gates rule editing and trade-board editing today; wire
-  it to real logins (NextAuth, Clerk, etc.) before this matters.
+- **Anyone can use the interactive stuff** — editing trade boards, voting in
+  polls, and posting to the vacation thread need no login.
+- **Commish Mode** (sidebar toggle) is password-gated (`IAMCOMMISH`) and only
+  unlocks admin-only affordances like rule add/edit. It's a light client-side
+  gate, **not real security** — the password ships in the browser bundle. For
+  true access control, move commish actions behind a server-side login
+  (NextAuth, Clerk, etc.). Change the password in `src/components/CommishProvider.tsx`.
 - Votes, trade boards, and the vacation thread persist to **localStorage** for
   now. Move them to a database (or Vercel KV / Postgres) when you want shared,
   multi-user state.

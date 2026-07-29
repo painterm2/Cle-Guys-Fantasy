@@ -5,7 +5,6 @@ import { colors, fonts } from "@/lib/theme";
 import { PageTitle } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
 import { TEAMS, avatarColor } from "@/lib/teams";
-import { useCommish } from "@/components/CommishProvider";
 import { POSITIONS, tradePosts } from "@/lib/leagueData";
 
 interface Board {
@@ -26,7 +25,6 @@ function seedBoards(): Board[] {
 }
 
 export default function TradesPage() {
-  const { commish } = useCommish();
   const [boards, setBoards] = useState<Board[]>(seedBoards);
   const [editing, setEditing] = useState<number | null>(null);
 
@@ -64,12 +62,6 @@ export default function TradesPage() {
         TRADE BOARD
       </PageTitle>
 
-      {!commish && (
-        <div style={{ background: colors.white, border: `1px solid ${colors.cardBorder}`, borderRadius: 6, padding: "10px 16px", fontSize: 13.5, color: colors.brown80, marginBottom: 20, fontFamily: fonts.condensed }}>
-          Turn on <strong>Commish Mode</strong> (bottom of the sidebar) to edit boards. In a full build this would be scoped to each owner&apos;s login.
-        </div>
-      )}
-
       <div className="cg-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 16 }}>
         {TEAMS.map((team, i) => {
           const b = boards[i];
@@ -82,14 +74,12 @@ export default function TradesPage() {
                   <div style={{ fontWeight: 700, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{team}</div>
                   <div style={{ fontFamily: fonts.condensed, fontSize: 11.5, color: colors.brown60, letterSpacing: 0.3 }}>{b.updated}</div>
                 </div>
-                {commish && (
-                  <button
-                    onClick={() => setEditing(isEditing ? null : i)}
-                    style={{ background: "none", border: "none", fontFamily: fonts.condensed, fontSize: 12, fontWeight: 600, color: colors.orange, cursor: "pointer", flex: "none" }}
-                  >
-                    {isEditing ? "DONE" : "EDIT"}
-                  </button>
-                )}
+                <button
+                  onClick={() => setEditing(isEditing ? null : i)}
+                  style={{ background: "none", border: "none", fontFamily: fonts.condensed, fontSize: 12, fontWeight: 600, color: colors.orange, cursor: "pointer", flex: "none" }}
+                >
+                  {isEditing ? "DONE" : "EDIT"}
+                </button>
               </div>
 
               {b.posted || isEditing ? (

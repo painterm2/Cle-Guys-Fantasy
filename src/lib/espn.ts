@@ -38,13 +38,23 @@ export interface MatchupSide {
   abbrev: string;
   logo: string | null;
   score: number;
+  record: string; // e.g. "5-2"
 }
+
+export type MatchupStatus = "upcoming" | "in_progress" | "final";
 
 export interface Matchup {
   matchupPeriodId: number;
   home: MatchupSide;
   away: MatchupSide | null; // null for a bye
-  winner: "home" | "away" | "undecided";
+  winner: "home" | "away" | "tie" | "undecided";
+  status: MatchupStatus;
+}
+
+export interface Schedule {
+  currentWeek: number;
+  weeks: number[];
+  matchups: Matchup[]; // all weeks; filter by matchupPeriodId
 }
 
 export interface EspnResult<T> {
@@ -199,49 +209,100 @@ export async function getNews(): Promise<EspnResult<NewsItem[]>> {
   }
 }
 
+function recordOf(t: any): string {
+  const o = t?.record?.overall;
+  if (!o) return "";
+  const base = `${o.wins ?? 0}-${o.losses ?? 0}`;
+  return o.ties ? `${base}-${o.ties}` : base;
+}
+
+// Turn ESPN's raw `schedule` array into normalized Matchup objects (all weeks).
+function parseMatchups(json: any, currentWeek: number): Matchup[] {
+  const teamsById = new Map<number, any>();
+  for (const t of json?.teams ?? []) teamsById.set(t.id, t);
+
+  const side = (raw: any): MatchupSide | null => {
+    if (!raw || raw.teamId == null || raw.teamId === 0) return null;
+    const t = teamsById.get(raw.teamId);
+    return {
+      teamId: raw.teamId,
+      name: t ? teamName(t, `Team ${raw.teamId}`) : `Team ${raw.teamId}`,
+      abbrev: t?.abbrev ?? "",
+      logo: normalizeLogo(t?.logo),
+      score: Math.round((raw.totalPoints ?? 0) * 10) / 10,
+      record: t ? recordOf(t) : "",
+    };
+  };
+
+  const schedule: any[] = json?.schedule ?? [];
+  return schedule.map((m) => {
+    const home = side(m.home);
+    const away = side(m.away);
+
+    let winner: Matchup["winner"] = "undecided";
+    if (m.winner === "HOME") winner = "home";
+    else if (m.winner === "AWAY") winner = "away";
+    else if (m.winner === "TIE") winner = "tie";
+
+    const week = m.matchupPeriodId;
+    const anyScore = (home?.score ?? 0) > 0 || (away?.score ?? 0) > 0;
+    let matchStatus: MatchupStatus;
+    if (winner !== "undecided") matchStatus = "final";
+    else if (week < currentWeek) matchStatus = "final";
+    else if (week === currentWeek && anyScore) matchStatus = "in_progress";
+    else matchStatus = "upcoming";
+
+    return {
+      matchupPeriodId: week,
+      home: home ?? { teamId: -1, name: "TBD", abbrev: "", logo: null, score: 0, record: "" },
+      away,
+      winner,
+      status: matchStatus,
+    };
+  });
+}
+
+function currentWeekOf(json: any): number {
+  return json?.scoringPeriodId ?? json?.status?.currentMatchupPeriod ?? 0;
+}
+
+/** Current-week matchups only — used by the compact home/standings widget. */
 export async function getScoreboard(): Promise<EspnResult<Matchup[]>> {
   const needsCreds = !hasCredentials();
   try {
     const json = await fetchLeague(["mScoreboard", "mTeam"]);
-    const week: number = json?.scoringPeriodId ?? json?.status?.currentMatchupPeriod ?? 0;
-
-    const teamsById = new Map<number, any>();
-    for (const t of json?.teams ?? []) teamsById.set(t.id, t);
-
-    const side = (raw: any): MatchupSide | null => {
-      if (!raw || raw.teamId == null) return null;
-      const t = teamsById.get(raw.teamId);
-      return {
-        teamId: raw.teamId,
-        name: t ? teamName(t, `Team ${raw.teamId}`) : `Team ${raw.teamId}`,
-        abbrev: t?.abbrev ?? "",
-        logo: normalizeLogo(t?.logo),
-        score: Math.round((raw.totalPoints ?? 0) * 10) / 10,
-      };
-    };
-
-    const schedule: any[] = json?.schedule ?? [];
-    const matchups: Matchup[] = schedule
-      .filter((m) => m.matchupPeriodId === week)
-      .map((m) => {
-        const home = side(m.home);
-        const away = side(m.away);
-        let winner: Matchup["winner"] = "undecided";
-        if (m.winner === "HOME") winner = "home";
-        else if (m.winner === "AWAY") winner = "away";
-        return {
-          matchupPeriodId: m.matchupPeriodId,
-          home: home ?? { teamId: -1, name: "TBD", abbrev: "", logo: null, score: 0 },
-          away,
-          winner,
-        };
-      });
-
+    const week = currentWeekOf(json);
+    const matchups = parseMatchups(json, week).filter((m) => m.matchupPeriodId === week);
     return { status: "live", data: matchups, needsCredentials: false, week };
   } catch (err: any) {
     return {
       status: err?.code === "AUTH" ? "unconfigured" : "error",
       data: [],
+      needsCredentials: err?.code === "AUTH" ? true : needsCreds,
+      error: err?.message ?? "Unknown error",
+    };
+  }
+}
+
+/** Full-season schedule with scores — used by the Matchups page. */
+export async function getSchedule(): Promise<EspnResult<Schedule>> {
+  const needsCreds = !hasCredentials();
+  const empty: Schedule = { currentWeek: 0, weeks: [], matchups: [] };
+  try {
+    const json = await fetchLeague(["mScoreboard", "mTeam", "mSettings"]);
+    const currentWeek = currentWeekOf(json);
+    const matchups = parseMatchups(json, currentWeek);
+    const weeks = Array.from(new Set(matchups.map((m) => m.matchupPeriodId))).sort((a, b) => a - b);
+    return {
+      status: "live",
+      data: { currentWeek, weeks, matchups },
+      needsCredentials: false,
+      week: currentWeek,
+    };
+  } catch (err: any) {
+    return {
+      status: err?.code === "AUTH" ? "unconfigured" : "error",
+      data: empty,
       needsCredentials: err?.code === "AUTH" ? true : needsCreds,
       error: err?.message ?? "Unknown error",
     };

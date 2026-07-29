@@ -2,29 +2,40 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
+// NOTE: this is a light gate to keep normal users out of admin controls, not
+// real security — the password lives in the client bundle. For true access
+// control, move commish actions behind a server-side login.
+const COMMISH_PASSWORD = "IAMCOMMISH";
+
 interface CommishCtx {
   commish: boolean;
-  toggle: () => void;
+  /** Attempt to enable commish mode with a password. Returns true on success. */
+  enable: (password: string) => boolean;
+  disable: () => void;
 }
 
-const Ctx = createContext<CommishCtx>({ commish: false, toggle: () => {} });
+const Ctx = createContext<CommishCtx>({ commish: false, enable: () => false, disable: () => {} });
 
 export function CommishProvider({ children }: { children: ReactNode }) {
   const [commish, setCommish] = useState(false);
 
-  // Persist the toggle across navigations/reloads.
   useEffect(() => {
     setCommish(localStorage.getItem("cg-commish") === "1");
   }, []);
 
-  const toggle = () =>
-    setCommish((v) => {
-      const next = !v;
-      localStorage.setItem("cg-commish", next ? "1" : "0");
-      return next;
-    });
+  const enable = (password: string) => {
+    if (password.trim() !== COMMISH_PASSWORD) return false;
+    localStorage.setItem("cg-commish", "1");
+    setCommish(true);
+    return true;
+  };
 
-  return <Ctx.Provider value={{ commish, toggle }}>{children}</Ctx.Provider>;
+  const disable = () => {
+    localStorage.setItem("cg-commish", "0");
+    setCommish(false);
+  };
+
+  return <Ctx.Provider value={{ commish, enable, disable }}>{children}</Ctx.Provider>;
 }
 
 export const useCommish = () => useContext(Ctx);
