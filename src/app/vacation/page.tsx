@@ -4,11 +4,15 @@ import { useState } from "react";
 import { colors, fonts } from "@/lib/theme";
 import { PageTitle, SectionLabel, EmptyState } from "@/components/ui";
 import { useCommish } from "@/components/CommishProvider";
+import { PollCard } from "@/components/PollCard";
 import { useSharedStore, logFeed } from "@/lib/sharedStore";
+import type { Poll } from "@/lib/polls";
 
 interface VacationData {
   options: { city: string; pitch: string; votes: number }[];
   thread: { who: string; msg: string; at?: string }[];
+  /** Poll id synced onto this page by the commish (the location vote). */
+  linkedPollId?: string | null;
 }
 
 const EMPTY: VacationData = { options: [], thread: [] };
@@ -17,10 +21,20 @@ const VOTED_KEY = "cg-vacation-voted-v3";
 export default function VacationPage() {
   const { commish } = useCommish();
   const { data, loaded, shared, error, mutate } = useSharedStore<VacationData>("vacation", EMPTY);
+  const { data: polls, mutate: mutatePolls } = useSharedStore<Poll[]>("polls", []);
   const [draft, setDraft] = useState("");
   const [name, setName] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [syncPick, setSyncPick] = useState("");
   const [, setTick] = useState(0);
+
+  const linkedPoll = data.linkedPollId ? polls.find((p) => p.id === data.linkedPollId) ?? null : null;
+
+  const syncPoll = () => {
+    if (!syncPick) return;
+    mutate((cur) => ({ ...cur, linkedPollId: syncPick }));
+  };
+  const unsyncPoll = () => mutate((cur) => ({ ...cur, linkedPollId: null }));
 
   const votedCity = typeof window !== "undefined" ? localStorage.getItem(VOTED_KEY) : null;
 
@@ -66,7 +80,7 @@ export default function VacationPage() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
-        <PageTitle sub="One draft, one road trip. Let's lock in the details.">DRAFT VACATION</PageTitle>
+        <PageTitle sub="One draft, one road trip. Let's lock in the details.">2028 IN-PERSON DRAFT LOCATION</PageTitle>
         <button
           onClick={() => setShowForm((s) => !s)}
           style={{ background: colors.orange, color: "#fff", border: "none", fontFamily: fonts.condensed, fontWeight: 600, fontSize: 13.5, letterSpacing: 0.5, padding: "10px 18px", borderRadius: 4, cursor: "pointer", flex: "none" }}
@@ -82,9 +96,56 @@ export default function VacationPage() {
       )}
       {error && <div style={{ color: colors.orange, fontSize: 13.5, marginBottom: 12, fontFamily: fonts.condensed }}>{error}</div>}
 
+      {/* Commish: sync a poll from Votes & Polls onto this page as the location vote */}
+      {commish && (
+        <div style={{ background: colors.white, border: `1px dashed ${colors.orange}`, borderRadius: 6, padding: "14px 18px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ fontFamily: fonts.condensed, fontSize: 12, letterSpacing: 1.5, fontWeight: 700, color: colors.orange, flex: "none" }}>
+            COMMISH — SYNC A POLL
+          </div>
+          {linkedPoll ? (
+            <>
+              <div style={{ fontSize: 13.5, flex: 1, minWidth: 160 }}>
+                Synced: <strong>{linkedPoll.question}</strong>
+              </div>
+              <button onClick={unsyncPoll} style={{ background: "none", border: `1px solid ${colors.cardBorder}`, color: colors.brown80, fontFamily: fonts.condensed, fontWeight: 600, fontSize: 12.5, padding: "7px 12px", borderRadius: 4, cursor: "pointer" }}>
+                UNSYNC
+              </button>
+            </>
+          ) : (
+            <>
+              <select
+                value={syncPick}
+                onChange={(e) => setSyncPick(e.target.value)}
+                style={{ fontSize: 13.5, padding: "8px 10px", borderRadius: 4, border: `1px solid ${colors.cardBorder}`, fontFamily: fonts.body, flex: 1, minWidth: 180, background: "#fff", color: colors.brown }}
+              >
+                <option value="">Pick a poll from Votes &amp; Polls…</option>
+                {polls.map((p) => (
+                  <option key={p.id} value={p.id}>{p.question}</option>
+                ))}
+              </select>
+              <button
+                onClick={syncPoll}
+                disabled={!syncPick}
+                style={{ background: syncPick ? colors.orange : "#e6ddcb", color: syncPick ? "#fff" : colors.brown60, border: "none", fontFamily: fonts.condensed, fontWeight: 600, fontSize: 12.5, letterSpacing: 0.5, padding: "8px 14px", borderRadius: 4, cursor: syncPick ? "pointer" : "default" }}
+              >
+                SYNC HERE
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* The synced location vote */}
+      {linkedPoll && (
+        <>
+          <SectionLabel>LOCATION VOTE</SectionLabel>
+          <PollCard poll={linkedPoll} commish={commish} onMutate={mutatePolls} />
+        </>
+      )}
+
       {showForm && <NewCityForm onSubmit={addCity} />}
 
-      {loaded && data.options.length === 0 && !showForm && (
+      {loaded && !linkedPoll && data.options.length === 0 && !showForm && (
         <EmptyState style={{ marginBottom: 24 }}>
           No destinations proposed yet. Hit “+ PITCH A CITY” to open the vote — or make your case in the thread below.
         </EmptyState>

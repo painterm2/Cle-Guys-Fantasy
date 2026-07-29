@@ -69,7 +69,7 @@ export default function HomePage() {
           </div>
 
           <CtaCard label="VOTES & POLLS" title="Punishments, rule changes, league decisions" href="/votes" cta="GO TO VOTES →" />
-          <CtaCard label="DRAFT VACATION" title="Planning the league's draft-day trip" href="/vacation" cta="SEE THE PLAN →" />
+          <CtaCard label="2028 IN-PERSON DRAFT" title="Where are we drafting in 2028?" href="/vacation" cta="SEE THE PLAN →" />
         </div>
       </div>
     </>

@@ -16,7 +16,7 @@ const NAV: { href: string; label: string }[] = [
   { href: "/trades", label: "Trade Board" },
   { href: "/votes", label: "Votes & Polls" },
   { href: "/parlay", label: "Weekly Parlay" },
-  { href: "/vacation", label: "Draft Vacation" },
+  { href: "/vacation", label: "2028 Draft Location" },
   { href: "/history", label: "History & HOF" },
 ];
 
