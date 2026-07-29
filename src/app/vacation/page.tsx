@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { colors, fonts } from "@/lib/theme";
-import { PageTitle, SectionLabel } from "@/components/ui";
+import { PageTitle, SectionLabel, EmptyState } from "@/components/ui";
 import { vacationOptions, vacationThread } from "@/lib/leagueData";
 
 export default function VacationPage() {
@@ -13,9 +13,9 @@ export default function VacationPage() {
   const [name, setName] = useState("");
 
   useEffect(() => {
-    const v = localStorage.getItem("cg-vacation-votes");
-    const vi = localStorage.getItem("cg-vacation-voted");
-    const t = localStorage.getItem("cg-vacation-thread");
+    const v = localStorage.getItem("cg-vacation-votes-v2");
+    const vi = localStorage.getItem("cg-vacation-voted-v2");
+    const t = localStorage.getItem("cg-vacation-thread-v2");
     if (v) try { setVotes(JSON.parse(v)); } catch {}
     if (vi != null) setVotedIdx(Number(vi));
     if (t) try { setThread(JSON.parse(t)); } catch {}
@@ -26,8 +26,8 @@ export default function VacationPage() {
     const next = votes.map((n, j) => (j === i ? n + 1 : n));
     setVotes(next);
     setVotedIdx(i);
-    localStorage.setItem("cg-vacation-votes", JSON.stringify(next));
-    localStorage.setItem("cg-vacation-voted", String(i));
+    localStorage.setItem("cg-vacation-votes-v2", JSON.stringify(next));
+    localStorage.setItem("cg-vacation-voted-v2", String(i));
   };
 
   const post = () => {
@@ -36,12 +36,19 @@ export default function VacationPage() {
     const next = [...thread, { who, msg: draft.trim() }];
     setThread(next);
     setDraft("");
-    localStorage.setItem("cg-vacation-thread", JSON.stringify(next));
+    localStorage.setItem("cg-vacation-thread-v2", JSON.stringify(next));
   };
 
   return (
     <>
-      <PageTitle sub="One draft, one road trip. Let's lock in the details.">2028 DRAFT VACATION</PageTitle>
+      <PageTitle sub="One draft, one road trip. Let's lock in the details.">DRAFT VACATION</PageTitle>
+
+      {vacationOptions.length === 0 && (
+        <EmptyState style={{ marginBottom: 24 }}>
+          No destinations proposed yet. Add cities to <code>vacationOptions</code> in <code>src/lib/leagueData.ts</code> to open the
+          vote — or pitch one in the thread below.
+        </EmptyState>
+      )}
 
       <div className="cg-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
         {vacationOptions.map((v, i) => (

@@ -63,6 +63,11 @@ export default function HomePage() {
               LIVE FEED
             </span>
           </div>
+          {feedItems.length === 0 && (
+            <div style={{ border: "2px dashed rgba(49,29,0,0.2)", borderRadius: 6, padding: "24px 20px", textAlign: "center", fontSize: 14, color: colors.brown80 }}>
+              Nothing posted yet — league activity will show up here.
+            </div>
+          )}
           {feedItems.map((fi, i) => (
             <div key={i} style={{ display: "flex", gap: 12, padding: "11px 0", borderTop: "1px solid rgba(49,29,0,0.08)" }}>
               <div
@@ -102,12 +107,14 @@ export default function HomePage() {
             <div style={{ fontFamily: fonts.condensed, fontSize: 12, letterSpacing: 1.5, fontWeight: 700, marginBottom: 6 }}>
               CURRENT PUNISHMENT
             </div>
-            <div style={{ fontFamily: fonts.display, fontSize: 21, lineHeight: 1.15, marginBottom: 8 }}>{currentPunishment.text}</div>
-            <div style={{ fontSize: 13, opacity: 0.9 }}>{currentPunishment.sub}</div>
+            <div style={{ fontFamily: fonts.display, fontSize: 21, lineHeight: 1.15, marginBottom: 8 }}>
+              {currentPunishment.text || "Not decided yet."}
+            </div>
+            <div style={{ fontSize: 13, opacity: 0.9 }}>{currentPunishment.sub || "The league votes before Week 1."}</div>
           </div>
 
-          <CtaCard label="OPEN VOTE" title="What's the 2026 loser's punishment?" href="/votes" cta="CAST YOUR VOTE →" />
-          <CtaCard label="2028 DRAFT VACATION" title="Nashville vs. Vegas — location vote is open" href="/vacation" cta="SEE THE PLAN →" />
+          <CtaCard label="VOTES & POLLS" title="Punishments, rule changes, league decisions" href="/votes" cta="GO TO VOTES →" />
+          <CtaCard label="DRAFT VACATION" title="Planning the league's draft-day trip" href="/vacation" cta="SEE THE PLAN →" />
         </div>
       </div>
     </>

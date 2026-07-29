@@ -27,6 +27,26 @@ export function SectionLabel({ children, color }: { children: ReactNode; color?:
   );
 }
 
+/** A neutral "nothing here yet" placeholder for sections waiting to be filled in. */
+export function EmptyState({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+  return (
+    <div
+      style={{
+        background: colors.white,
+        border: "2px dashed rgba(49,29,0,0.2)",
+        borderRadius: 6,
+        padding: "26px 24px",
+        textAlign: "center",
+        fontSize: 14.5,
+        color: colors.brown60,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function Card({ children, style }: { children: ReactNode; style?: CSSProperties }) {
   return (
     <div

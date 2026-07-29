@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { colors, fonts } from "@/lib/theme";
-import { PageTitle } from "@/components/ui";
+import { PageTitle, EmptyState } from "@/components/ui";
 import { activePolls } from "@/lib/leagueData";
 
-// Seed each option with a starting tally derived from the mock percentages so
-// the bars have something to move. Real vote storage would live server-side.
+// Seed each option's tally from its starting count in leagueData (usually 0
+// for a fresh poll). Real vote storage would live server-side.
 function seedCounts() {
   return activePolls.map((p) => p.options.map((o) => o.pct));
 }
@@ -17,8 +17,8 @@ export default function VotesPage() {
   const [selection, setSelection] = useState<Record<number, number>>({});
 
   useEffect(() => {
-    const c = localStorage.getItem("cg-poll-counts");
-    const v = localStorage.getItem("cg-poll-voted");
+    const c = localStorage.getItem("cg-poll-counts-v2");
+    const v = localStorage.getItem("cg-poll-voted-v2");
     if (c) try { setCounts(JSON.parse(c)); } catch {}
     if (v) try { setVoted(JSON.parse(v)); } catch {}
   }, []);
@@ -30,13 +30,20 @@ export default function VotesPage() {
     const nextVoted = { ...voted, [pollIdx]: optIdx };
     setCounts(nextCounts);
     setVoted(nextVoted);
-    localStorage.setItem("cg-poll-counts", JSON.stringify(nextCounts));
-    localStorage.setItem("cg-poll-voted", JSON.stringify(nextVoted));
+    localStorage.setItem("cg-poll-counts-v2", JSON.stringify(nextCounts));
+    localStorage.setItem("cg-poll-voted-v2", JSON.stringify(nextVoted));
   };
 
   return (
     <>
       <PageTitle>VOTES &amp; POLLS</PageTitle>
+
+      {activePolls.length === 0 && (
+        <EmptyState>
+          No open votes right now. Polls get added in <code>activePolls</code> in <code>src/lib/leagueData.ts</code> — punishment votes,
+          rule changes, whatever needs deciding.
+        </EmptyState>
+      )}
 
       {activePolls.map((poll, pi) => {
         const total = counts[pi].reduce((a, b) => a + b, 0) || 1;

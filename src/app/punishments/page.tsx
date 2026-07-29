@@ -69,25 +69,32 @@ export default function PunishmentsPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontFamily: fonts.display,
-            fontSize: 28,
-            color: "#fff",
+            fontSize: 32,
           }}
         >
-          P
+          ⚖️
         </div>
         <div>
           <div style={{ fontFamily: fonts.condensed, fontSize: 12, letterSpacing: 2, color: colors.orange, fontWeight: 700, marginBottom: 6 }}>
             {currentPunishment.eyebrow}
           </div>
-          <div style={{ fontFamily: fonts.display, fontSize: 24, color: colors.cream }}>{currentPunishment.text}</div>
+          <div style={{ fontFamily: fonts.display, fontSize: 24, color: colors.cream }}>
+            {currentPunishment.text || "No punishment locked in yet."}
+          </div>
+          {currentPunishment.sub && <div style={{ fontSize: 13.5, color: colors.creamMuted, marginTop: 6 }}>{currentPunishment.sub}</div>}
         </div>
       </div>
 
-      <PunishmentProof who="Peter" />
+      <PunishmentProof />
 
       <SectionLabel>HALL OF SHAME — PAST SENTENCES</SectionLabel>
       <SourceBanner loaded={loaded} live={meta.live} needsCreds={meta.needsCreds} error={meta.error} />
+
+      {loaded && rows.length === 0 && (
+        <div style={{ background: colors.white, border: "2px dashed rgba(49,29,0,0.2)", borderRadius: 6, padding: "26px 24px", textAlign: "center", fontSize: 14.5, color: colors.brown60, marginBottom: 12 }}>
+          No past sentences on record yet — this fills in automatically from ESPN once history loads.
+        </div>
+      )}
 
       {rows.map((p) => (
         <div
@@ -122,8 +129,8 @@ function SourceBanner({ loaded, live, needsCreds, error }: { loaded: boolean; li
   if (!loaded) return <Banner tone="muted">Loading last-place finishers from ESPN…</Banner>;
   if (live) return <Banner tone="live">● Losers pulled from ESPN (regular-season last place). Descriptions are editable in the code.</Banner>;
   if (needsCreds)
-    return <Banner tone="warn">Showing sample history — add your ESPN cookies to load the real last-place finishers (see README).</Banner>;
-  return <Banner tone="muted">Showing sample history — live ESPN history unavailable{error ? ` (${error})` : ""}.</Banner>;
+    return <Banner tone="warn">Add your ESPN cookies to load the real last-place finishers (see README).</Banner>;
+  return <Banner tone="muted">Live ESPN history unavailable{error ? ` (${error})` : ""}.</Banner>;
 }
 
 function Banner({ tone, children }: { tone: "live" | "warn" | "muted"; children: React.ReactNode }) {

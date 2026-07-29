@@ -31,7 +31,7 @@ export default function TradesPage() {
   // Persist boards locally so edits survive a refresh (a real build would
   // store these server-side, scoped to each owner's login).
   useEffect(() => {
-    const saved = localStorage.getItem("cg-trade-boards");
+    const saved = localStorage.getItem("cg-trade-boards-v2");
     if (saved) {
       try {
         setBoards(JSON.parse(saved));
@@ -43,7 +43,7 @@ export default function TradesPage() {
 
   const persist = (next: Board[]) => {
     setBoards(next);
-    localStorage.setItem("cg-trade-boards", JSON.stringify(next));
+    localStorage.setItem("cg-trade-boards-v2", JSON.stringify(next));
   };
 
   const update = (idx: number, patch: Partial<Board>) => {

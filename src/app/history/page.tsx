@@ -53,6 +53,11 @@ export default function HistoryPage() {
       <SourceBanner loaded={loaded} live={meta.live} needsCreds={meta.needsCreds} error={meta.error} />
 
       <SectionLabel>CHAMPIONS BY SEASON</SectionLabel>
+      {loaded && champs.length === 0 && (
+        <div style={{ background: colors.white, border: "2px dashed rgba(49,29,0,0.2)", borderRadius: 6, padding: "26px 24px", textAlign: "center", fontSize: 14.5, color: colors.brown60, marginBottom: 28 }}>
+          Champions fill in automatically from ESPN once history loads.
+        </div>
+      )}
       <div className="cg-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 28 }}>
         {champs.map((c, i) => (
           <div key={c.year} style={{ background: colors.white, border: `1px solid ${colors.cardBorder}`, borderRadius: 6, padding: "18px 20px", textAlign: "center" }}>
@@ -79,6 +84,11 @@ export default function HistoryPage() {
       </div>
 
       <SectionLabel>ALL-TIME RECORDS</SectionLabel>
+      {loaded && records.length === 0 && (
+        <div style={{ background: colors.white, border: "2px dashed rgba(49,29,0,0.2)", borderRadius: 6, padding: "26px 24px", textAlign: "center", fontSize: 14.5, color: colors.brown60 }}>
+          Records are computed from ESPN history once it loads.
+        </div>
+      )}
       <div style={{ background: colors.white, border: `1px solid ${colors.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
         {records.map((r) => (
           <div key={r.label} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "16px 24px", borderBottom: "1px solid rgba(49,29,0,0.06)" }}>
@@ -95,8 +105,8 @@ function SourceBanner({ loaded, live, needsCreds, error }: { loaded: boolean; li
   if (!loaded) return <Banner tone="muted">Loading league history from ESPN…</Banner>;
   if (live) return <Banner tone="live">● Pulled live from ESPN league history</Banner>;
   if (needsCreds)
-    return <Banner tone="warn">Showing sample history — add your ESPN cookies to load real champions &amp; records (see README).</Banner>;
-  return <Banner tone="muted">Showing sample history — live ESPN history unavailable{error ? ` (${error})` : ""}.</Banner>;
+    return <Banner tone="warn">Add your ESPN cookies to load real champions &amp; records (see README).</Banner>;
+  return <Banner tone="muted">Live ESPN history unavailable{error ? ` (${error})` : ""}.</Banner>;
 }
 
 function Banner({ tone, children }: { tone: "live" | "warn" | "muted"; children: React.ReactNode }) {

@@ -31,7 +31,7 @@ async function resizeImage(file: File, maxDim = 1400, quality = 0.85): Promise<F
   return new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" });
 }
 
-export function PunishmentProof({ who = "Peter" }: { who?: string }) {
+export function PunishmentProof({ who = "the loser" }: { who?: string }) {
   const { commish } = useCommish();
   const [items, setItems] = useState<ProofItem[]>([]);
   const [configured, setConfigured] = useState(true);
@@ -97,11 +97,11 @@ export function PunishmentProof({ who = "Peter" }: { who?: string }) {
     <div style={{ background: colors.white, border: `1px solid ${colors.cardBorder}`, borderRadius: 6, padding: "20px 24px", marginBottom: 24 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 4 }}>
         <div style={{ fontFamily: fonts.condensed, fontSize: 13, letterSpacing: 2, color: colors.orange, fontWeight: 700 }}>
-          📸 PROOF OF PUNISHMENT — {who.toUpperCase()}&apos;S WEEKLY JERSEY
+          📸 PROOF OF PUNISHMENT — {who.toUpperCase()}
         </div>
       </div>
       <div style={{ fontSize: 13.5, color: colors.brown80, marginBottom: 16, lineHeight: 1.4 }}>
-        {who} posts a photo each week wearing the jersey. Everyone in the league sees the wall of shame here.
+        Weekly photo evidence that the punishment is being served. Everyone in the league sees the wall of shame here.
       </div>
 
       {/* Uploader */}
@@ -131,7 +131,7 @@ export function PunishmentProof({ who = "Peter" }: { who?: string }) {
       ) : (
         <div style={{ background: "#fff8f0", border: "1px solid rgba(251,79,20,0.3)", borderRadius: 6, padding: "12px 16px", fontSize: 13.5, color: colors.brown, marginBottom: 18, fontFamily: fonts.condensed, letterSpacing: 0.3 }}>
           Photo uploads need a <strong>Vercel Blob store</strong> connected (a 1-minute toggle in your Vercel project). See the README →
-          &ldquo;Peter&apos;s punishment photo wall&rdquo;.
+          &ldquo;Punishment photo wall&rdquo;.
         </div>
       )}
 
