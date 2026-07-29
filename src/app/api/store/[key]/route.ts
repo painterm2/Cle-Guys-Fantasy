@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { list, put } from "@vercel/blob";
+import { blobToken } from "@/lib/blob";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ const ALLOWED_KEYS = new Set(["polls", "trade-boards", "vacation", "feed"]);
 const MAX_BYTES = 200_000; // a JSON doc bigger than this is a bug, not content
 
 function configured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(blobToken());
 }
 
 function pathFor(key: string): string {
@@ -32,7 +33,7 @@ export async function GET(_req: NextRequest, { params }: { params: { key: string
     return NextResponse.json({ configured: false, data: null });
   }
   try {
-    const { blobs } = await list({ prefix: pathFor(key), limit: 1 });
+    const { blobs } = await list({ prefix: pathFor(key), limit: 1, token: blobToken() });
     if (blobs.length === 0) {
       return NextResponse.json({ configured: true, data: null });
     }
@@ -75,6 +76,7 @@ export async function PUT(req: NextRequest, { params }: { params: { key: string 
       contentType: "application/json",
       addRandomSuffix: false, // fixed path — each write overwrites the doc
       cacheControlMaxAge: 60, // blob CDN minimum; reads cache-bust anyway
+      token: blobToken(),
     });
     return NextResponse.json({ ok: true });
   } catch (err: any) {

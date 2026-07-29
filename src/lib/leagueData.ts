@@ -18,7 +18,7 @@ export const statCards = [
   { label: "SEASONS RUNNING", value: "8", sub: "since 2019" },
   { label: "TEAMS", value: "10", sub: "managers" },
   { label: "2026 PUNISHMENT", value: "TBD", sub: "set before Week 1" },
-  { label: "DRAFT ORDER", value: "TBD", sub: "revealed on draft day" },
+  { label: "DRAFT ORDER", value: "TBD", sub: "revealed before draft day" },
 ];
 
 // The punishment currently being served. Fill in once it's decided.

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { list, put, del } from "@vercel/blob";
+import { blobToken } from "@/lib/blob";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 const PREFIX = "punishment-proof/";
 
 function configured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(blobToken());
 }
 
 interface ProofItem {
@@ -24,7 +25,7 @@ export async function GET() {
     return NextResponse.json({ configured: false, items: [] as ProofItem[] });
   }
   try {
-    const { blobs } = await list({ prefix: PREFIX });
+    const { blobs } = await list({ prefix: PREFIX, token: blobToken() });
     const items: ProofItem[] = blobs
       .map((b) => {
         const m = b.pathname.match(/week-(\d+)/);
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
   }
   const safe = (file.name || "photo.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
   const path = `${PREFIX}week-${week}/${Date.now()}-${safe}`;
-  const blob = await put(path, file, { access: "public", contentType: file.type });
+  const blob = await put(path, file, { access: "public", contentType: file.type, token: blobToken() });
   return NextResponse.json({ url: blob.url, pathname: blob.pathname, week });
 }
 
@@ -72,6 +73,6 @@ export async function DELETE(req: NextRequest) {
   }
   const url = new URL(req.url).searchParams.get("url");
   if (!url) return NextResponse.json({ error: "Missing url." }, { status: 400 });
-  await del(url);
+  await del(url, { token: blobToken() });
   return NextResponse.json({ ok: true });
 }

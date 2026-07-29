@@ -24,7 +24,7 @@ export default function DraftPage() {
           </div>
         ) : (
           <div style={{ flex: 1, color: colors.cream, fontSize: 15 }}>
-            Not chosen yet — the order gets decided by video on draft day. Check back once it&apos;s set.
+            Not chosen yet — the order gets revealed by video before draft day. Check back once it&apos;s set.
           </div>
         )}
       </div>
