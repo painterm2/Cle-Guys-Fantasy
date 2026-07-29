@@ -24,6 +24,10 @@ export type EspnStatus = "live" | "unconfigured" | "error";
 export interface TeamStanding {
   teamId: number;
   rank: number;
+  /** Manager behind the team, when we can resolve it. */
+  owner?: string;
+  /** ESPN's end-of-season rank, for finished seasons. */
+  finalRank?: number;
   name: string;
   abbrev: string;
   logo: string | null;
@@ -317,7 +321,7 @@ export async function getSchedule(): Promise<EspnResult<Schedule>> {
 // replace hand-entered History / Hall of Shame data with the real record.
 // ---------------------------------------------------------------------------
 
-const FIRST_SEASON = 2019; // Cleveland Guys started in 2019
+export const FIRST_SEASON = 2019; // Cleveland Guys started in 2019
 
 export interface SeasonEntry {
   year: number;
@@ -606,6 +610,75 @@ export async function getLeagueSettings(): Promise<EspnResult<SettingsGroup[]>> 
     push("TRADES", trades);
 
     return { status: "live", data: groups, needsCredentials: false };
+  } catch (err: any) {
+    return {
+      status: err?.code === "AUTH" ? "unconfigured" : "error",
+      data: [],
+      needsCredentials: err?.code === "AUTH" ? true : needsCreds,
+      error: err?.message ?? "Unknown error",
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Standings for any season — the current one from the live endpoint, past ones
+// from leagueHistory. Lets the standings page look back through the years.
+// ---------------------------------------------------------------------------
+
+/** Seasons we can show standings for, newest first. */
+export function availableSeasons(): number[] {
+  const end = currentSeason();
+  const years: number[] = [];
+  for (let y = end; y >= FIRST_SEASON; y--) years.push(y);
+  return years;
+}
+
+export async function getSeasonStandings(year: number): Promise<EspnResult<TeamStanding[]>> {
+  const needsCreds = !hasCredentials();
+
+  // The live endpoint covers the current season; older ones need leagueHistory.
+  if (year === currentSeason()) {
+    return getStandings();
+  }
+
+  try {
+    const league = await fetchHistorySeason(year);
+    const teams: any[] = league?.teams ?? [];
+    const members: any[] = league?.members ?? [];
+    if (teams.length === 0) {
+      return { status: "error", data: [], needsCredentials: needsCreds, error: `No ESPN data for ${year}.` };
+    }
+
+    // Resolve managers using this season's own team names.
+    const realBySwid = buildRealBySwid([{ league }]);
+
+    const rows: TeamStanding[] = teams.map((t, i) => {
+      const overall = t.record?.overall ?? {};
+      return {
+        teamId: t.id,
+        rank: t.rankCalculatedFinal || t.playoffSeed || i + 1,
+        finalRank: t.rankCalculatedFinal || undefined,
+        owner: ownerName(t, members, realBySwid),
+        name: teamName(t, `Team ${t.id}`),
+        abbrev: t.abbrev || "",
+        logo: normalizeLogo(t.logo),
+        wins: overall.wins ?? 0,
+        losses: overall.losses ?? 0,
+        ties: overall.ties ?? 0,
+        pointsFor: Math.round((overall.pointsFor ?? 0) * 10) / 10,
+        pointsAgainst: Math.round((overall.pointsAgainst ?? 0) * 10) / 10,
+      };
+    });
+
+    // Finished seasons: order by ESPN's final standing. Fall back to record.
+    const anyFinal = rows.some((r) => r.finalRank);
+    rows.sort((a, b) =>
+      anyFinal
+        ? (a.finalRank ?? 99) - (b.finalRank ?? 99)
+        : b.wins - a.wins || b.pointsFor - a.pointsFor,
+    );
+
+    return { status: "live", data: rows.map((r, i) => ({ ...r, rank: r.finalRank ?? i + 1 })), needsCredentials: false };
   } catch (err: any) {
     return {
       status: err?.code === "AUTH" ? "unconfigured" : "error",
