@@ -3,7 +3,14 @@
 export const PUBLIC_LEAGUE_ID =
   process.env.NEXT_PUBLIC_ESPN_LEAGUE_ID || "2110005";
 
+// ESPN nests standings/scoreboard under /football/league/... — the bare
+// /football/standings path 404s.
+const PATHS: Record<"league" | "standings" | "scoreboard", string> = {
+  league: "league",
+  standings: "league/standings",
+  scoreboard: "league/scoreboard",
+};
+
 export function espnLeagueUrl(path: "league" | "standings" | "scoreboard" = "league"): string {
-  const base = "https://fantasy.espn.com/football";
-  return `${base}/${path}?leagueId=${PUBLIC_LEAGUE_ID}`;
+  return `https://fantasy.espn.com/football/${PATHS[path]}?leagueId=${PUBLIC_LEAGUE_ID}`;
 }
