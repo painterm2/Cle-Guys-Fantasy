@@ -10,6 +10,7 @@ import type { HistoryData } from "@/lib/espn";
 interface Champ {
   year: string;
   team: string;
+  owner?: string;
 }
 
 export default function HistoryPage() {
@@ -26,7 +27,7 @@ export default function HistoryPage() {
         const json = (await r.json()) as { status: string; data: HistoryData; needsCredentials: boolean; error?: string };
         if (!alive) return;
         if (json.status === "live" && json.data.champions.length > 0) {
-          setChamps(json.data.champions.map((c) => ({ year: String(c.year), team: c.team })));
+          setChamps(json.data.champions.map((c) => ({ year: String(c.year), team: c.team, owner: c.owner })));
           if (json.data.records.length > 0) setRecords(json.data.records);
           setMeta({ live: true, needsCreds: false });
         } else {
@@ -72,6 +73,7 @@ export default function HistoryPage() {
               🏆
             </div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{c.team}</div>
+            {c.owner && <div style={{ fontSize: 12.5, color: colors.brown60, marginTop: 3 }}>{c.owner}</div>}
           </div>
         ))}
       </div>

@@ -320,6 +320,7 @@ const FIRST_SEASON = 2019; // Cleveland Guys started in 2019
 export interface SeasonEntry {
   year: number;
   team: string;
+  owner: string; // the manager — stable even when the team name changes year to year
 }
 
 export interface HistoryData {
@@ -355,6 +356,17 @@ async function fetchHistorySeason(year: number): Promise<any | null> {
   const json = await res.json();
   const league = Array.isArray(json) ? json[0] : json;
   return league ?? null;
+}
+
+/** Map a team to its manager's name using the league's members list. */
+function ownerName(team: any, members: any[]): string {
+  const ownerId = Array.isArray(team?.owners) ? team.owners[0] : undefined;
+  const member = ownerId ? members.find((m) => m?.id === ownerId) : undefined;
+  if (member) {
+    const full = [member.firstName, member.lastName].filter(Boolean).join(" ").trim();
+    return (member.displayName || full || "").trim() || "Unknown owner";
+  }
+  return "Unknown owner";
 }
 
 /** Pick the regular-season last-place team: highest playoff seed, or worst record. */
@@ -398,6 +410,7 @@ export async function getLeagueHistory(): Promise<EspnResult<HistoryData>> {
 
     for (const { y, league } of seasons) {
       const teams: any[] = league?.teams ?? [];
+      const members: any[] = league?.members ?? [];
       if (teams.length === 0) continue;
 
       // A season is "complete" once ESPN has assigned a final #1.
@@ -405,20 +418,21 @@ export async function getLeagueHistory(): Promise<EspnResult<HistoryData>> {
       if (!champ) continue;
       completed++;
 
-      const champName = teamName(champ, `Team ${champ.id}`);
-      champions.push({ year: y, team: champName });
-      titleCount[champName] = (titleCount[champName] ?? 0) + 1;
+      const champOwner = ownerName(champ, members);
+      champions.push({ year: y, team: teamName(champ, `Team ${champ.id}`), owner: champOwner });
+      // Tally titles by the manager (stable) rather than the team name (changes).
+      titleCount[champOwner] = (titleCount[champOwner] ?? 0) + 1;
 
       const loser = lastPlaceTeam(teams);
       if (loser) {
-        const loserName = teamName(loser, `Team ${loser.id}`);
-        lastPlace.push({ year: y, team: loserName });
-        lastCount[loserName] = (lastCount[loserName] ?? 0) + 1;
+        const loserOwner = ownerName(loser, members);
+        lastPlace.push({ year: y, team: teamName(loser, `Team ${loser.id}`), owner: loserOwner });
+        lastCount[loserOwner] = (lastCount[loserOwner] ?? 0) + 1;
       }
 
       for (const t of teams) {
         const pf = t.record?.overall?.pointsFor ?? 0;
-        if (pf > bestSeason.points) bestSeason = { team: teamName(t, `Team ${t.id}`), year: y, points: pf };
+        if (pf > bestSeason.points) bestSeason = { team: ownerName(t, members), year: y, points: pf };
       }
     }
 

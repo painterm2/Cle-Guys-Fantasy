@@ -11,6 +11,7 @@ import type { HistoryData } from "@/lib/espn";
 interface ShameRow {
   year: string;
   loser: string;
+  owner?: string;
   punishment: string;
 }
 
@@ -34,6 +35,7 @@ export default function PunishmentsPage() {
             json.data.lastPlace.map((lp) => ({
               year: String(lp.year),
               loser: lp.team,
+              owner: lp.owner,
               punishment: punishmentDescriptions[String(lp.year)] ?? NO_PUNISHMENT,
             })),
           );
@@ -94,7 +96,10 @@ export default function PunishmentsPage() {
         >
           <div style={{ fontFamily: fonts.display, fontSize: 20, color: colors.orange, width: 56, flex: "none" }}>{p.year}</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, fontSize: 15 }}>{p.loser}</div>
+            <div style={{ fontWeight: 600, fontSize: 15 }}>
+              {p.loser}
+              {p.owner && <span style={{ fontWeight: 400, color: colors.brown60 }}> · {p.owner}</span>}
+            </div>
             <div style={{ fontSize: 14, color: colors.brown80, marginTop: 2 }}>{p.punishment}</div>
           </div>
         </div>
