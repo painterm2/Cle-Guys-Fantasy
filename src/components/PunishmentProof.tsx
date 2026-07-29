@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { colors, fonts } from "@/lib/theme";
 import { useCommish } from "./CommishProvider";
+import { logFeed } from "@/lib/sharedStore";
 
 interface ProofItem {
   url: string;
@@ -74,6 +75,7 @@ export function PunishmentProof({ who = "the loser" }: { who?: string }) {
         throw new Error(j.error || `Upload failed (${r.status})`);
       }
       await load();
+      logFeed(who, `posted Week ${week} punishment proof.`);
     } catch (err: any) {
       setError(err?.message ?? "Upload failed.");
     } finally {

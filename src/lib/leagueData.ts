@@ -65,7 +65,12 @@ export const ruleGroups = [
 // The last-place LOSER for each year is pulled live from ESPN; this map only
 // supplies what the punishment actually was. Keys are the season year, e.g.
 //   "2025": "Wears his least favorite team's jersey every Sunday.",
-export const punishmentDescriptions: Record<string, string> = {};
+export const punishmentDescriptions: Record<string, string> = {
+  "2025": "Steelers jersey every Sunday.",
+  "2024": "Beer 5K.",
+  "2023": "Beer 5K.",
+  // Seasons before 2023 had no punishment.
+};
 
 // Fallback Hall of Shame, only used if ESPN history can't be reached. The real
 // list comes live from ESPN. Leave empty unless you want a manual fallback.

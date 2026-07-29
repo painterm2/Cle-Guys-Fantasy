@@ -2,6 +2,7 @@ import Link from "next/link";
 import { colors, fonts } from "@/lib/theme";
 import { LiveScoreboard } from "@/components/LiveScoreboard";
 import { LeagueFeed } from "@/components/LeagueFeed";
+import { PunishmentProofStrip } from "@/components/PunishmentProofStrip";
 import { statCards, currentPunishment, SEASON_LABEL } from "@/lib/leagueData";
 
 export default function HomePage() {
@@ -57,6 +58,8 @@ export default function HomePage() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <LiveScoreboard compact />
+
+          <PunishmentProofStrip />
 
           <div style={{ background: colors.orange, borderRadius: 6, padding: "20px 22px", color: "#fff" }}>
             <div style={{ fontFamily: fonts.condensed, fontSize: 12, letterSpacing: 1.5, fontWeight: 700, marginBottom: 6 }}>

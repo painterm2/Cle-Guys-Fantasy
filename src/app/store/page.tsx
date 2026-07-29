@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { colors, fonts } from "@/lib/theme";
 import { PageTitle, SectionLabel, EmptyState } from "@/components/ui";
+import { useCommish } from "@/components/CommishProvider";
 import { storeProducts, COMMISH_CONTACT, type StoreProduct } from "@/lib/leagueData";
 import { useCart, money, makeOrderId, orderText, EMPTY_SHIP, type CartLine, type ShipTo } from "@/lib/cart";
 
@@ -18,8 +19,26 @@ interface PlacedOrder {
 
 export default function StorePage() {
   const cart = useCart();
+  const { commish } = useCommish();
   const [step, setStep] = useState<Step>("shop");
   const [order, setOrder] = useState<PlacedOrder | null>(null);
+  // Photos uploaded through the site, keyed by product id. These take
+  // precedence over anything hard-coded, so the commish can set them up
+  // without touching the repo.
+  const [uploaded, setUploaded] = useState<Record<string, string[]>>({});
+
+  const loadPhotos = async () => {
+    try {
+      const r = await fetch("/api/product-photo");
+      const j = await r.json();
+      setUploaded(j.photos ?? {});
+    } catch {
+      /* fall back to whatever's in leagueData */
+    }
+  };
+  useEffect(() => {
+    loadPhotos();
+  }, []);
 
   const live = storeProducts.filter((p) => p.name);
 
@@ -56,7 +75,14 @@ export default function StorePage() {
       ) : (
         <div className="cg-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18, marginBottom: 28 }}>
           {live.map((p) => (
-            <ProductCard key={p.id} product={p} onAdd={cart.add} />
+            <ProductCard
+              key={p.id}
+              product={p}
+              photos={uploaded[p.id] ?? []}
+              commish={commish}
+              onPhotosChanged={loadPhotos}
+              onAdd={cart.add}
+            />
           ))}
         </div>
       )}
@@ -131,9 +157,15 @@ function QtyButton({ label, onClick }: { label: string; onClick: () => void }) {
 
 function ProductCard({
   product,
+  photos,
+  commish,
+  onPhotosChanged,
   onAdd,
 }: {
   product: StoreProduct;
+  photos: string[];
+  commish: boolean;
+  onPhotosChanged: () => void;
   onAdd: (p: StoreProduct, size: string | undefined, color: string | undefined, qty: number) => void;
 }) {
   const [size, setSize] = useState(product.sizes?.[0] ?? "");
@@ -145,7 +177,33 @@ function ProductCard({
   // rather than a broken-image icon.
   const [broken, setBroken] = useState<Record<string, boolean>>({});
 
-  const images = (product.images ?? []).filter((src) => src && !broken[src]);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Uploaded photos win; the hard-coded list is the fallback.
+  const source = photos.length > 0 ? photos : product.images ?? [];
+  const images = source.filter((src) => src && !broken[src]);
+
+  const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (fileRef.current) fileRef.current.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      await fetch(`/api/product-photo?productId=${encodeURIComponent(product.id)}`, { method: "POST", body: fd });
+      onPhotosChanged();
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removePhoto = async (url: string) => {
+    if (!confirm("Remove this product photo?")) return;
+    await fetch(`/api/product-photo?url=${encodeURIComponent(url)}`, { method: "DELETE" });
+    onPhotosChanged();
+  };
 
   const add = () => {
     onAdd(product, product.sizes ? size : undefined, product.colors ? color : undefined, qty);
@@ -201,6 +259,56 @@ function ProductCard({
           </>
         ) : (
           <div style={{ fontFamily: fonts.condensed, fontSize: 13, color: colors.brown60, letterSpacing: 1 }}>PRODUCT PHOTO</div>
+        )}
+
+        {/* Commish can add/remove product photos without touching the code */}
+        {commish && (
+          <>
+            <input ref={fileRef} type="file" accept="image/*" onChange={upload} style={{ display: "none" }} />
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              style={{
+                position: "absolute",
+                top: 8,
+                left: 8,
+                background: "rgba(49,29,0,0.8)",
+                color: "#fff",
+                border: "none",
+                fontFamily: fonts.condensed,
+                fontWeight: 700,
+                fontSize: 11.5,
+                letterSpacing: 0.8,
+                padding: "6px 10px",
+                borderRadius: 4,
+                cursor: uploading ? "default" : "pointer",
+              }}
+            >
+              {uploading ? "UPLOADING…" : "+ PHOTO"}
+            </button>
+            {photos.length > 0 && (
+              <button
+                onClick={() => removePhoto(images[Math.min(shot, images.length - 1)])}
+                title="Remove this photo"
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "rgba(49,29,0,0.8)",
+                  color: "#fff",
+                  fontSize: 14,
+                  lineHeight: 1,
+                  cursor: "pointer",
+                }}
+              >
+                ×
+              </button>
+            )}
+          </>
         )}
       </div>
 
