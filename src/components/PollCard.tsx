@@ -141,9 +141,12 @@ export function PollCard({
 
       {poll.options.map((opt, oi) => {
         const pct = total === 0 ? 0 : Math.round((counts[oi] / total) * 100);
-        const selected = selection === opt.id;
+        // Older polls were saved without option ids; fall back to the index so
+        // the option is still selectable and votable.
+        const optId = opt.id || `o${oi}`;
+        const selected = selection === optId;
         return (
-          <div key={opt.id} style={{ marginBottom: 9 }}>
+          <div key={optId} style={{ marginBottom: 9 }}>
             <label style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 4, cursor: voted ? "default" : "pointer", alignItems: "center", gap: 10 }}>
               <span style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}>
                 {!voted && (
@@ -151,7 +154,7 @@ export function PollCard({
                     type="radio"
                     name={`poll-${poll.id}`}
                     checked={selected}
-                    onChange={() => setSelection(opt.id)}
+                    onChange={() => setSelection(optId)}
                     style={{ accentColor: colors.orange }}
                   />
                 )}
@@ -162,7 +165,7 @@ export function PollCard({
                   {counts[oi]} {counts[oi] === 1 ? "vote" : "votes"}{total > 0 ? ` · ${pct}%` : ""}
                 </span>
                 {commish && poll.options.length > 2 && (
-                  <span onClick={() => removeOption(opt.id, opt.label)} title="Remove option (commish)" style={{ color: colors.orange, cursor: "pointer", fontWeight: 700 }}>
+                  <span onClick={() => removeOption(optId, opt.label)} title="Remove option (commish)" style={{ color: colors.orange, cursor: "pointer", fontWeight: 700 }}>
                     ×
                   </span>
                 )}

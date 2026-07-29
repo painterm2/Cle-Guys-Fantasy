@@ -29,6 +29,34 @@ function ownerByHash(): Map<string, string> {
   return new Map(OWNERS.map((o) => [hashOwner(o), o]));
 }
 
+/**
+ * Heal polls saved before options carried stable ids.
+ *
+ * Those polls have `options: [{ label }]` with no id, which left the vote
+ * button permanently disabled (selecting an option set `undefined`). Give
+ * every option a deterministic id, and translate any ballot that still points
+ * at an option *index* to the matching option id. Applied on every read, and
+ * persisted the next time the document is written.
+ */
+export function normalize(polls: Poll[]): Poll[] {
+  return polls.map((p) => {
+    const options = (p.options ?? []).map((o: any, i: number) => ({
+      id: typeof o?.id === "string" && o.id ? o.id : `o${i}`,
+      label: o?.label ?? `Option ${i + 1}`,
+    }));
+    const ballots: Record<string, string> = {};
+    for (const [who, val] of Object.entries((p.ballots ?? {}) as Record<string, unknown>)) {
+      if (typeof val === "number") {
+        const opt = options[val]; // legacy: ballot stored the option index
+        if (opt) ballots[who] = opt.id;
+      } else if (typeof val === "string" && options.some((o) => o.id === val)) {
+        ballots[who] = val;
+      }
+    }
+    return { ...p, options, ballots };
+  });
+}
+
 export async function readPolls(): Promise<Poll[]> {
   const token = blobToken();
   if (!token) return [];
@@ -37,7 +65,7 @@ export async function readPolls(): Promise<Poll[]> {
   const res = await fetch(`${blobs[0].url}?v=${Date.now()}`, { cache: "no-store" });
   if (!res.ok) return [];
   const data = await res.json();
-  return Array.isArray(data) ? (data as Poll[]) : [];
+  return Array.isArray(data) ? normalize(data as Poll[]) : [];
 }
 
 export async function writePolls(polls: Poll[]): Promise<void> {
@@ -51,9 +79,9 @@ export async function writePolls(polls: Poll[]): Promise<void> {
 }
 
 /** Strip the ballot mapping; expose only counts and who has voted. */
-export function sanitize(polls: Poll[]): Poll[] {
+export function sanitize(raw: Poll[]): Poll[] {
   const byHash = ownerByHash();
-  return polls.map((p) => {
+  return normalize(raw).map((p) => {
     const ballots = p.ballots ?? {};
     const votedBy: string[] = [];
     for (const h of Object.keys(ballots)) {
@@ -86,9 +114,9 @@ export function reveal(polls: Poll[]): Record<string, Record<string, string>> {
  * stored one, preserving each poll's ballots. Ballots pointing at options that
  * were removed are dropped, so those managers can vote again.
  */
-export function mergeBallots(incoming: Poll[], stored: Poll[]): Poll[] {
-  const storedById = new Map(stored.map((p) => [p.id, p]));
-  return incoming.map((p) => {
+export function mergeBallots(rawIncoming: Poll[], stored: Poll[]): Poll[] {
+  const storedById = new Map(normalize(stored).map((p) => [p.id, p]));
+  return normalize(rawIncoming).map((p) => {
     const prior = storedById.get(p.id);
     const validIds = new Set(p.options.map((o) => o.id));
     const ballots: Record<string, string> = {};
