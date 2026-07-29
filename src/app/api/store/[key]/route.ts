@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // client-side to keep clobbering rare.
 // ---------------------------------------------------------------------------
 
-const ALLOWED_KEYS = new Set(["polls", "trade-boards", "vacation", "feed"]);
+const ALLOWED_KEYS = new Set(["polls", "trade-boards", "vacation", "feed", "parlay"]);
 const MAX_BYTES = 200_000; // a JSON doc bigger than this is a bug, not content
 
 function configured(): boolean {

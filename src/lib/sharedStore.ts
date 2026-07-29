@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // store is set up).
 // ---------------------------------------------------------------------------
 
-export type StoreKey = "polls" | "trade-boards" | "vacation" | "feed";
+export type StoreKey = "polls" | "trade-boards" | "vacation" | "feed" | "parlay";
 
 async function fetchStore<T>(key: StoreKey): Promise<{ configured: boolean; data: T | null }> {
   const r = await fetch(`/api/store/${key}`, { cache: "no-store" });
