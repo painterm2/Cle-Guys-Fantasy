@@ -52,6 +52,13 @@ export const ruleGroups = [
       },
     ],
   },
+  {
+    title: "BUY-IN & PAYOUTS",
+    rules: [
+      { num: "3.1", text: "$50 buy-in per team." },
+      { num: "3.2", text: "Payouts: 1st — $450 · 2nd — $350 · 3rd — $125 · Most points — $75." },
+    ],
+  },
 ];
 
 // The punishment description per season (ESPN can't know these — fill these in).
