@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { TEAMS } from "./teams";
 
 // ---------------------------------------------------------------------------
 // Client side of the shared JSON store (/api/store/<key>). Everyone in the
@@ -126,9 +127,12 @@ const FEED_MAX = 30;
 export function logFeed(who: string, what: string, teamIndex: number | null = null) {
   (async () => {
     try {
+      // Posts are credited to a team name, so give the entry that team's
+      // avatar colour when the caller didn't specify one.
+      const idx = teamIndex ?? (TEAMS.indexOf(who) >= 0 ? TEAMS.indexOf(who) : null);
       const { configured, data } = await fetchStore<FeedItem[]>("feed");
       if (!configured) return; // no shared store — skip silently
-      const next: FeedItem[] = [{ who, what, at: new Date().toISOString(), teamIndex }, ...(data ?? [])].slice(0, FEED_MAX);
+      const next: FeedItem[] = [{ who, what, at: new Date().toISOString(), teamIndex: idx }, ...(data ?? [])].slice(0, FEED_MAX);
       await putStore("feed", next);
     } catch {
       /* the feed is a nicety — never block the real action on it */

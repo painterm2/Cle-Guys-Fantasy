@@ -5,14 +5,14 @@ import { colors, fonts } from "@/lib/theme";
 import { PageTitle, EmptyState, SectionLabel } from "@/components/ui";
 import { useCommish } from "@/components/CommishProvider";
 import { PollCard } from "@/components/PollCard";
-import { OwnerPicker, useMyOwner } from "@/components/OwnerPicker";
+import { OwnerPicker, useActor } from "@/components/OwnerPicker";
 import { useSharedStore, logFeed } from "@/lib/sharedStore";
 import { newId, type Poll } from "@/lib/polls";
 
 export default function VotesPage() {
   const { commish } = useCommish();
   const { data: polls, loaded, shared, error, mutate, refresh } = useSharedStore<Poll[]>("polls", []);
-  const [owner, setOwner] = useMyOwner();
+  const { owner, setOwner, actor } = useActor();
   const [showForm, setShowForm] = useState(false);
 
   const addPoll = (question: string, options: string[], closes: string, allowAdditions: boolean) => {
@@ -25,7 +25,7 @@ export default function VotesPage() {
       allowAdditions: allowAdditions || undefined,
     };
     mutate((cur) => [poll, ...cur]);
-    logFeed("Someone", `opened a new poll: “${question}”`);
+    logFeed(actor, `opened a new poll: “${question}”`);
     setShowForm(false);
   };
 
@@ -48,7 +48,7 @@ export default function VotesPage() {
       )}
       {error && <div style={{ color: colors.orange, fontSize: 13.5, marginBottom: 12, fontFamily: fonts.condensed }}>{error}</div>}
 
-      <OwnerPicker owner={owner} onChange={setOwner} />
+      <OwnerPicker owner={owner} onChange={setOwner} note="Saved on this device. Your vote stays anonymous — only the commish can see who voted for what." />
 
       {showForm && <NewPollForm onSubmit={addPoll} />}
 
@@ -57,7 +57,7 @@ export default function VotesPage() {
       )}
 
       {polls.map((poll) => (
-        <PollCard key={poll.id} poll={poll} commish={commish} voter={owner} onMutate={mutate} onVoted={refresh} />
+        <PollCard key={poll.id} poll={poll} commish={commish} voter={owner} actor={actor} onMutate={mutate} onVoted={refresh} />
       ))}
     </>
   );

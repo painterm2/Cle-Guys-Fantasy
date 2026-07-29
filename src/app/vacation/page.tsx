@@ -5,7 +5,7 @@ import { colors, fonts } from "@/lib/theme";
 import { PageTitle, SectionLabel, EmptyState } from "@/components/ui";
 import { useCommish } from "@/components/CommishProvider";
 import { PollCard } from "@/components/PollCard";
-import { OwnerPicker, useMyOwner } from "@/components/OwnerPicker";
+import { OwnerPicker, useActor } from "@/components/OwnerPicker";
 import { useSharedStore, logFeed } from "@/lib/sharedStore";
 import type { Poll } from "@/lib/polls";
 
@@ -23,9 +23,8 @@ export default function VacationPage() {
   const { commish } = useCommish();
   const { data, loaded, shared, error, mutate } = useSharedStore<VacationData>("vacation", EMPTY);
   const { data: polls, mutate: mutatePolls, refresh: refreshPolls } = useSharedStore<Poll[]>("polls", []);
-  const [owner, setOwner] = useMyOwner();
+  const { owner, setOwner, actor, identified } = useActor();
   const [draft, setDraft] = useState("");
-  const [name, setName] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [syncPick, setSyncPick] = useState("");
   const [, setTick] = useState(0);
@@ -56,7 +55,7 @@ export default function VacationPage() {
         ? cur
         : { ...cur, options: [...cur.options, { city, pitch, votes: 0 }] },
     );
-    logFeed("Someone", `pitched ${city} for the draft vacation.`);
+    logFeed(actor, `pitched ${city} for the 2028 draft location.`);
     setShowForm(false);
   };
 
@@ -66,12 +65,12 @@ export default function VacationPage() {
   };
 
   const post = () => {
-    if (!draft.trim()) return;
-    const who = name.trim() || "Guest";
+    if (!draft.trim() || !identified) return;
+    const who = actor;
     const msg = draft.trim();
     setDraft("");
     mutate((cur) => ({ ...cur, thread: [...cur.thread, { who, msg, at: new Date().toISOString() }] }));
-    logFeed(who, "posted in the draft vacation thread.");
+    logFeed(actor, "posted in the draft location thread.");
   };
 
   const removePost = (idx: number) => {
@@ -97,6 +96,8 @@ export default function VacationPage() {
         </div>
       )}
       {error && <div style={{ color: colors.orange, fontSize: 13.5, marginBottom: 12, fontFamily: fonts.condensed }}>{error}</div>}
+
+      <OwnerPicker owner={owner} onChange={setOwner} />
 
       {/* Commish: sync a poll from Votes & Polls onto this page as the location vote */}
       {commish && (
@@ -141,8 +142,7 @@ export default function VacationPage() {
       {linkedPoll && (
         <>
           <SectionLabel>LOCATION VOTE</SectionLabel>
-          <OwnerPicker owner={owner} onChange={setOwner} />
-          <PollCard poll={linkedPoll} commish={commish} voter={owner} onMutate={mutatePolls} onVoted={refreshPolls} />
+          <PollCard poll={linkedPoll} commish={commish} voter={owner} actor={actor} onMutate={mutatePolls} onVoted={refreshPolls} />
         </>
       )}
 
@@ -214,16 +214,10 @@ export default function VacationPage() {
         ))}
         <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
           <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Your name"
-            style={{ fontSize: 14, padding: "9px 12px", borderRadius: 4, border: `1px solid ${colors.cardBorder}`, outline: "none", fontFamily: fonts.body, width: 120 }}
-          />
-          <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && post()}
-            placeholder="Add to the plan…"
+            placeholder={identified ? "Add to the plan…" : "Pick your team above to post"}
             style={{ fontSize: 14, padding: "9px 12px", borderRadius: 4, border: `1px solid ${colors.cardBorder}`, outline: "none", fontFamily: fonts.body, flex: 1, minWidth: 160 }}
           />
           <button

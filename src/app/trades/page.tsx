@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { colors, fonts } from "@/lib/theme";
 import { PageTitle } from "@/components/ui";
+import { OwnerPicker, useActor } from "@/components/OwnerPicker";
 import { Avatar } from "@/components/Avatar";
 import { TEAMS, avatarColor } from "@/lib/teams";
 import { POSITIONS } from "@/lib/leagueData";
@@ -21,6 +22,7 @@ const emptyBoards = (): Board[] => TEAMS.map(() => ({ looking: [], offering: [],
 export default function TradesPage() {
   const { data: boards, loaded, shared, error, mutate } = useSharedStore<Board[]>("trade-boards", emptyBoards());
   const logos = useTeamLogos();
+  const { owner, setOwner, actor } = useActor();
   const [editing, setEditing] = useState<number | null>(null);
 
   const update = (idx: number, patch: Partial<Board>) => {
@@ -37,7 +39,8 @@ export default function TradesPage() {
 
   const finishEditing = (idx: number) => {
     setEditing(null);
-    logFeed(TEAMS[idx], "updated their trade board.", idx);
+    // Anyone can edit any board, so name both the editor and the board.
+    logFeed(actor, idx === TEAMS.indexOf(actor) ? "updated their trade board." : `updated the ${TEAMS[idx]} trade board.`, idx);
   };
 
   return (
@@ -52,6 +55,8 @@ export default function TradesPage() {
         </div>
       )}
       {error && <div style={{ color: colors.orange, fontSize: 13.5, marginBottom: 12, fontFamily: fonts.condensed }}>{error}</div>}
+
+      <OwnerPicker owner={owner} onChange={setOwner} note="Saved on this device — board edits get credited to your team." />
 
       <div className="cg-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 16 }}>
         {TEAMS.map((team, i) => {

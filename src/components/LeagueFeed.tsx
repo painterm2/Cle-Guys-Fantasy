@@ -42,7 +42,7 @@ export function LeagueFeed() {
               fontSize: 13,
             }}
           >
-            {fi.teamIndex != null ? initialsOf(TEAMS[fi.teamIndex] ?? fi.who) : (fi.who[0] ?? "?")}
+            {initialsOf(fi.teamIndex != null ? TEAMS[fi.teamIndex] ?? fi.who : fi.who)}
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 14.5, lineHeight: 1.4 }}>

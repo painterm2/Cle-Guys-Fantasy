@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { colors, fonts } from "@/lib/theme";
 import { PageTitle, SectionLabel } from "@/components/ui";
+import { OwnerPicker, useActor } from "@/components/OwnerPicker";
 import { useCommish } from "@/components/CommishProvider";
 import { ownerRealNames } from "@/lib/leagueData";
 import { useSharedStore, logFeed, timeAgo } from "@/lib/sharedStore";
@@ -28,7 +29,7 @@ export default function ParlayPage() {
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [espnLoaded, setEspnLoaded] = useState(false);
   const [week, setWeek] = useState<number | null>(null);
-  const [who, setWho] = useState("");
+  const { owner, setOwner, actor, identified } = useActor();
   const [pick, setPick] = useState("");
 
   useEffect(() => {
@@ -77,12 +78,11 @@ export default function ParlayPage() {
   const legs = parlay[String(wk)]?.legs ?? [];
 
   const addLeg = () => {
-    if (!pick.trim()) return;
-    const name = who.trim() || "Guest";
-    const leg: Leg = { who: name, pick: pick.trim(), at: new Date().toISOString() };
+    if (!pick.trim() || !identified) return;
+    const leg: Leg = { who: actor, pick: pick.trim(), at: new Date().toISOString() };
     setPick("");
     mutate((cur) => ({ ...cur, [String(wk)]: { legs: [...(cur[String(wk)]?.legs ?? []), leg] } }));
-    logFeed(name, `added a leg to the Week ${wk} parlay: “${leg.pick}”`);
+    logFeed(actor, `added a leg to the Week ${wk} parlay: “${leg.pick}”`);
   };
 
   const removeLeg = (idx: number) => {
@@ -153,6 +153,8 @@ export default function ParlayPage() {
       {/* Legs board */}
       <SectionLabel>WEEK {wk} PARLAY LEGS</SectionLabel>
 
+      <OwnerPicker owner={owner} onChange={setOwner} note="Saved on this device — your legs get credited to your team." />
+
       {!shared && storeLoaded && (
         <Banner tone="warn">Shared saving isn't connected yet — for now, legs only save on this device.</Banner>
       )}
@@ -181,16 +183,10 @@ export default function ParlayPage() {
 
         <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
           <input
-            value={who}
-            onChange={(e) => setWho(e.target.value)}
-            placeholder="Your name"
-            style={{ fontSize: 14, padding: "9px 12px", borderRadius: 4, border: `1px solid ${colors.cardBorder}`, outline: "none", fontFamily: fonts.body, width: 130 }}
-          />
-          <input
             value={pick}
             onChange={(e) => setPick(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addLeg()}
-            placeholder="Your leg — e.g. “Chiefs -3.5” or “Chase anytime TD”"
+            placeholder={identified ? "Your leg — e.g. “Chiefs -3.5” or “Chase anytime TD”" : "Pick your team above to add a leg"}
             style={{ fontSize: 14, padding: "9px 12px", borderRadius: 4, border: `1px solid ${colors.cardBorder}`, outline: "none", fontFamily: fonts.body, flex: 1, minWidth: 200 }}
           />
           <button

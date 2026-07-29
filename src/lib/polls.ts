@@ -37,6 +37,26 @@ export interface Poll {
 /** The league's managers, from the team->owner map (deduped, alphabetical). */
 export const OWNERS: string[] = [...new Set(Object.values(ownerRealNames))].sort();
 
+/** manager -> their team name (first one listed for them). */
+const TEAM_BY_OWNER: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  for (const [team, owner] of Object.entries(ownerRealNames)) {
+    if (!map[owner]) map[owner] = team;
+  }
+  return map;
+})();
+
+/** The team name to show for a manager — that's how the league knows them. */
+export function teamFor(owner: string): string {
+  return TEAM_BY_OWNER[owner] ?? owner;
+}
+
+/** Managers with their team names, sorted by team name for the picker. */
+export const OWNER_CHOICES: { owner: string; team: string }[] = OWNERS.map((owner) => ({
+  owner,
+  team: teamFor(owner),
+})).sort((a, b) => a.team.localeCompare(b.team));
+
 const OWNER_KEY = "cg-owner-name";
 
 export function getMyOwner(): string {

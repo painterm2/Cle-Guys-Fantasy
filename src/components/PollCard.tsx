@@ -4,7 +4,7 @@ import { useState } from "react";
 import { colors, fonts } from "@/lib/theme";
 import { logFeed } from "@/lib/sharedStore";
 import { COMMISH_PASSWORD } from "@/components/CommishProvider";
-import { OWNERS, newId, type Poll } from "@/lib/polls";
+import { OWNERS, teamFor, newId, type Poll } from "@/lib/polls";
 
 /**
  * One poll: options, tallies, vote button, and — when the poll allows it —
@@ -18,12 +18,14 @@ export function PollCard({
   poll,
   commish,
   voter,
+  actor,
   onMutate,
   onVoted,
 }: {
   poll: Poll;
   commish: boolean;
   voter: string;
+  actor: string;
   onMutate: (fn: (cur: Poll[]) => Poll[]) => void;
   onVoted: () => void;
 }) {
@@ -72,7 +74,7 @@ export function PollCard({
           : p,
       ),
     );
-    logFeed("Someone", `added “${label}” to the poll “${poll.question}”`);
+    logFeed(actor, `added “${label}” to the poll “${poll.question}”`);
   };
 
   const removePoll = () => {
@@ -228,7 +230,7 @@ export function PollCard({
             <div style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.7 }}>
               {Object.entries(ballots ?? {}).map(([who, label]) => (
                 <div key={who}>
-                  <strong>{who}</strong> → {label}
+                  <strong>{teamFor(who)}</strong> <span style={{ color: colors.brown70 }}>({who})</span> → {label}
                 </div>
               ))}
               {Object.keys(ballots ?? {}).length === 0 && (
@@ -236,7 +238,7 @@ export function PollCard({
               )}
               {notVoted.length > 0 && (
                 <div style={{ color: colors.brown70, marginTop: 6 }}>
-                  Hasn&apos;t voted: {notVoted.join(", ")}
+                  Hasn&apos;t voted: {notVoted.map(teamFor).join(", ")}
                 </div>
               )}
             </div>
