@@ -81,16 +81,13 @@ export const punishmentHistory = [
   { year: "2019", loser: TEAMS[1], punishment: "No punishment assigned this year." },
 ];
 
-export const draftOrder = TEAMS.map((team, i) => ({ pick: i + 1, team }));
+// This year's draft order hasn't been decided yet — leave empty so the page
+// shows "not chosen" instead of a fake order. Fill in once it's set.
+export const draftOrder: { pick: number; team: string }[] = [];
 
+// Only real draft-day videos we have on file. Add more as they're recorded.
 export const draftVideos = [
-  { year: "2026", desc: "Bracket-style elimination, filmed at Herbie's place." },
-  { year: "2025", desc: "Card draw with punishment twist." },
-  { year: "2024", desc: "Dice roll-off, best of three." },
-  { year: "2023", desc: "Reverse standings coin flip chain." },
-  { year: "2022", desc: "Trivia bracket, losers pick last." },
-  { year: "2021", desc: "Golf putting contest." },
-  { year: "2020", desc: "Remote card draw over Zoom." },
+  { year: "2025", title: "Draft Order Announcement", youtubeId: "U5BXm38ZU54", start: 488 },
 ];
 
 export const POSITIONS = ["QB", "RB", "WR", "TE", "FLEX", "DEF", "K"] as const;
