@@ -81,6 +81,25 @@ export const punishmentHistory = [
   { year: "2019", loser: TEAMS[1], punishment: "No punishment assigned this year." },
 ];
 
+// Real manager names, keyed by a team name they've used. ESPN only stores the
+// account username + whatever the team is called that season; this maps a team
+// name back to the actual person. We learn each manager's stable ESPN id from
+// any season where one of these names matches, then use the real name for ALL
+// their seasons — even years the team was called something else. To add a
+// manager, list ANY team name they've used → their real name.
+export const ownerRealNames: Record<string, string> = {
+  "HUGE Football Team Guy": "Louis Thiery",
+  "Sherwin Williams": "Michael Painter",
+  "THE BEST MAN": "Seth Broz",
+  "Tito .": "Sean Wallenhorst",
+  "Kyle Krueger": "Kyle Krueger",
+  "Herbie: Fully (un)Loaded": "Matt Redinger",
+  "Nash over Ernie": "Brian Wallenhorst",
+  "The Rice Cookers": "Mike Pichette",
+  "Michael Painter : The Movie": "Andrew Rebholz",
+  "Maker Bae-field": "Peter Trepke",
+};
+
 // This year's draft order hasn't been decided yet — leave empty so the page
 // shows "not chosen" instead of a fake order. Fill in once it's set.
 export const draftOrder: { pick: number; team: string }[] = [];

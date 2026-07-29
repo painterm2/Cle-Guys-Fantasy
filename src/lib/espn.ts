@@ -1,3 +1,5 @@
+import { ownerRealNames } from "./leagueData";
+
 // ---------------------------------------------------------------------------
 // ESPN Fantasy Football v3 API client (server-side only).
 //
@@ -358,15 +360,47 @@ async function fetchHistorySeason(year: number): Promise<any | null> {
   return league ?? null;
 }
 
-/** Map a team to its manager's name using the league's members list. */
-function ownerName(team: any, members: any[]): string {
+const normTeam = (s: string): string => s.toLowerCase().replace(/\s+/g, " ").trim();
+
+// Team name (normalized) -> real manager name, from the editable ownerRealNames.
+const REAL_BY_TEAM_NAME: Record<string, string> = Object.fromEntries(
+  Object.entries(ownerRealNames).map(([team, real]) => [normTeam(team), real]),
+);
+
+/**
+ * Resolve a team to its real manager name. Order of preference:
+ *  1. realBySwid — the manager's stable ESPN id, learned from any season whose
+ *     team name matched ownerRealNames (survives team-name changes).
+ *  2. A direct team-name match this season.
+ *  3. The ESPN account (displayName / first+last) as a last resort.
+ */
+function ownerName(team: any, members: any[], realBySwid: Record<string, string>): string {
   const ownerId = Array.isArray(team?.owners) ? team.owners[0] : undefined;
+  if (ownerId && realBySwid[ownerId]) return realBySwid[ownerId];
+
+  const byName = REAL_BY_TEAM_NAME[normTeam(teamName(team, ""))];
+  if (byName) return byName;
+
   const member = ownerId ? members.find((m) => m?.id === ownerId) : undefined;
   if (member) {
     const full = [member.firstName, member.lastName].filter(Boolean).join(" ").trim();
     return (member.displayName || full || "").trim() || "Unknown owner";
   }
   return "Unknown owner";
+}
+
+/** First pass: learn each manager's stable ESPN id from any season whose team name matches. */
+function buildRealBySwid(seasons: { league: any }[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const { league } of seasons) {
+    for (const t of league?.teams ?? []) {
+      const ownerId = Array.isArray(t?.owners) ? t.owners[0] : undefined;
+      if (!ownerId || map[ownerId]) continue;
+      const real = REAL_BY_TEAM_NAME[normTeam(teamName(t, ""))];
+      if (real) map[ownerId] = real;
+    }
+  }
+  return map;
 }
 
 /** Pick the regular-season last-place team: highest playoff seed, or worst record. */
@@ -401,6 +435,9 @@ export async function getLeagueHistory(): Promise<EspnResult<HistoryData>> {
       ),
     );
 
+    // Learn stable owner ids first so real names carry across team renames.
+    const realBySwid = buildRealBySwid(seasons);
+
     const champions: SeasonEntry[] = [];
     const lastPlace: SeasonEntry[] = [];
     const titleCount: Record<string, number> = {};
@@ -418,21 +455,21 @@ export async function getLeagueHistory(): Promise<EspnResult<HistoryData>> {
       if (!champ) continue;
       completed++;
 
-      const champOwner = ownerName(champ, members);
+      const champOwner = ownerName(champ, members, realBySwid);
       champions.push({ year: y, team: teamName(champ, `Team ${champ.id}`), owner: champOwner });
       // Tally titles by the manager (stable) rather than the team name (changes).
       titleCount[champOwner] = (titleCount[champOwner] ?? 0) + 1;
 
       const loser = lastPlaceTeam(teams);
       if (loser) {
-        const loserOwner = ownerName(loser, members);
+        const loserOwner = ownerName(loser, members, realBySwid);
         lastPlace.push({ year: y, team: teamName(loser, `Team ${loser.id}`), owner: loserOwner });
         lastCount[loserOwner] = (lastCount[loserOwner] ?? 0) + 1;
       }
 
       for (const t of teams) {
         const pf = t.record?.overall?.pointsFor ?? 0;
-        if (pf > bestSeason.points) bestSeason = { team: ownerName(t, members), year: y, points: pf };
+        if (pf > bestSeason.points) bestSeason = { team: ownerName(t, members, realBySwid), year: y, points: pf };
       }
     }
 
