@@ -99,6 +99,23 @@ export const draftVideos = [
   { year: "2025", title: "Draft Order Announcement", youtubeId: "U5BXm38ZU54", start: 488 },
 ];
 
+// League store — products hosted on Printful. Paste each product's share URL
+// (and an image URL, optional) here; the Store page links straight out to it.
+// To swap a product, just change the entry.
+export interface StoreProduct {
+  name: string;
+  blurb: string;
+  price?: string;
+  url: string;
+  image?: string;
+}
+
+export const storeProducts: StoreProduct[] = [
+  { name: "", blurb: "", price: "", url: "", image: "" },
+  { name: "", blurb: "", price: "", url: "", image: "" },
+  { name: "", blurb: "", price: "", url: "", image: "" },
+];
+
 export const POSITIONS = ["QB", "RB", "WR", "TE", "FLEX", "DEF", "K"] as const;
 
 // NOTE: Polls, trade boards, the vacation vote/thread, and the home-page feed

@@ -18,6 +18,7 @@ const NAV: { href: string; label: string }[] = [
   { href: "/parlay", label: "Weekly Parlay" },
   { href: "/vacation", label: "2028 Draft Location" },
   { href: "/history", label: "History & HOF" },
+  { href: "/store", label: "Store" },
 ];
 
 export function Sidebar() {
