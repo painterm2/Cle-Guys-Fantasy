@@ -30,6 +30,8 @@ export interface Poll {
   proposedBy?: string;
   /** When true, anyone can append their own option to the poll. */
   allowAdditions?: boolean;
+  /** Commish closed it — no further votes or changes. */
+  closed?: boolean;
   /** votes per option, aligned to `options`. Server-computed. */
   counts?: number[];
   /** owners who have cast a ballot (not what they picked). Server-computed. */
@@ -62,6 +64,20 @@ export const OWNER_CHOICES: { owner: string; team: string }[] = OWNERS.map((owne
 })).sort((a, b) => a.team.localeCompare(b.team));
 
 const OWNER_KEY = "cg-owner-name";
+
+// Your own pick, remembered on your device so the card can show what you chose
+// and prefill it when you change your vote. The server never tells a browser
+// how anyone voted — including you — so this is the only place it lives.
+const pickKey = (pollId: string) => `cg-mypick-${pollId}`;
+
+export function getMyPick(pollId: string): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(pickKey(pollId));
+}
+
+export function setMyPick(pollId: string, optionId: string) {
+  if (typeof window !== "undefined") localStorage.setItem(pickKey(pollId), optionId);
+}
 
 export function getMyOwner(): string {
   if (typeof window === "undefined") return "";

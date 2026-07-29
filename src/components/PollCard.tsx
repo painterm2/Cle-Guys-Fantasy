@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { colors, fonts } from "@/lib/theme";
 import { logFeed } from "@/lib/sharedStore";
 import { COMMISH_PASSWORD } from "@/components/CommishProvider";
-import { OWNERS, teamFor, newId, ruleOutcome, MAJORITY, type Poll } from "@/lib/polls";
+import { OWNERS, teamFor, newId, ruleOutcome, MAJORITY, getMyPick, setMyPick, type Poll } from "@/lib/polls";
 
 /**
  * One poll: options, tallies, vote button, and — when the poll allows it —
@@ -32,31 +32,43 @@ export function PollCard({
   onVoted: () => void;
 }) {
   const [selection, setSelection] = useState<string | null>(null);
+  const [changing, setChanging] = useState(false);
+  const [myPick, setMyPickState] = useState<string | null>(null);
   const [newOption, setNewOption] = useState("");
   const [busy, setBusy] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const [ballots, setBallots] = useState<Record<string, string> | null>(null);
   const [showBallots, setShowBallots] = useState(false);
 
+  useEffect(() => {
+    setMyPickState(getMyPick(poll.id));
+  }, [poll.id]);
+
   const counts = poll.counts ?? poll.options.map(() => 0);
   const total = counts.reduce((a, b) => a + b, 0);
   const votedBy = poll.votedBy ?? [];
   const voted = voter ? votedBy.includes(voter) : false;
+  const closed = poll.closed === true;
+  const picking = !closed && (!voted || changing);
 
   const castVote = async () => {
-    if (!selection || !voter || voted || busy) return;
+    if (!selection || !voter || busy || closed) return;
+    if (voted && !changing) return;
     setBusy(true);
     setVoteError(null);
     try {
       const r = await fetch("/api/vote", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ pollId: poll.id, owner: voter, optionId: selection }),
+        body: JSON.stringify({ pollId: poll.id, owner: voter, optionId: selection, change: changing }),
       });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
         throw new Error(j.error || "Couldn't record your vote.");
       }
+      setMyPick(poll.id, selection);
+      setMyPickState(selection);
+      setChanging(false);
       onVoted();
     } catch (err: any) {
       setVoteError(err?.message ?? "Couldn't record your vote.");
@@ -77,6 +89,10 @@ export function PollCard({
       ),
     );
     logFeed(actor, `added “${label}” to the poll “${poll.question}”`);
+  };
+
+  const toggleClosed = () => {
+    onMutate((cur) => cur.map((p) => (p.id === poll.id ? { ...p, closed: !closed } : p)));
   };
 
   const removePoll = () => {
@@ -121,9 +137,14 @@ export function PollCard({
             </div>
           )}
           {poll.question}
-          {poll.allowAdditions && (
+          {poll.allowAdditions && !closed && (
             <span style={{ marginLeft: 10, fontFamily: fonts.condensed, fontSize: 11, letterSpacing: 1, fontWeight: 700, color: colors.orange, border: `1px solid ${colors.orange}`, borderRadius: 20, padding: "2px 8px", verticalAlign: "middle" }}>
               OPEN OPTIONS
+            </span>
+          )}
+          {closed && (
+            <span style={{ marginLeft: 10, fontFamily: fonts.condensed, fontSize: 11, letterSpacing: 1, fontWeight: 700, color: "#fff", background: colors.brown, borderRadius: 20, padding: "3px 9px", verticalAlign: "middle" }}>
+              CLOSED
             </span>
           )}
         </div>
@@ -132,9 +153,18 @@ export function PollCard({
             <div style={{ fontFamily: fonts.condensed, fontSize: 12, color: colors.brown70, letterSpacing: 0.5 }}>{poll.closes}</div>
           )}
           {commish && (
-            <button onClick={removePoll} title="Delete poll (commish)" style={{ background: "none", border: "none", color: colors.orange, cursor: "pointer", fontSize: 15, lineHeight: 1 }}>
-              ×
-            </button>
+            <>
+              <button
+                onClick={toggleClosed}
+                title={closed ? "Reopen voting (commish)" : "Close this poll to further votes (commish)"}
+                style={{ background: "none", border: `1px solid ${colors.cardBorder}`, color: colors.brown80, fontFamily: fonts.condensed, fontWeight: 700, fontSize: 11.5, letterSpacing: 0.5, padding: "5px 10px", borderRadius: 4, cursor: "pointer" }}
+              >
+                {closed ? "REOPEN" : "CLOSE POLL"}
+              </button>
+              <button onClick={removePoll} title="Delete poll (commish)" style={{ background: "none", border: "none", color: colors.orange, cursor: "pointer", fontSize: 15, lineHeight: 1 }}>
+                ×
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -147,9 +177,9 @@ export function PollCard({
         const selected = selection === optId;
         return (
           <div key={optId} style={{ marginBottom: 9 }}>
-            <label style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 4, cursor: voted ? "default" : "pointer", alignItems: "center", gap: 10 }}>
+            <label style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 4, cursor: picking ? "pointer" : "default", alignItems: "center", gap: 10 }}>
               <span style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}>
-                {!voted && (
+                {picking && (
                   <input
                     type="radio"
                     name={`poll-${poll.id}`}
@@ -158,7 +188,12 @@ export function PollCard({
                     style={{ accentColor: colors.orange }}
                   />
                 )}
-                <span>{opt.label}</span>
+                <span>
+                  {opt.label}
+                  {myPick === optId && voted && (
+                    <span style={{ color: colors.orange, fontFamily: fonts.condensed, fontSize: 11.5, letterSpacing: 0.5 }}> · YOUR PICK</span>
+                  )}
+                </span>
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: 8, color: colors.brown80, flex: "none" }}>
                 <span>
@@ -178,7 +213,7 @@ export function PollCard({
         );
       })}
 
-      {poll.allowAdditions && (
+      {poll.allowAdditions && !closed && (
         <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
           <input
             value={newOption}
@@ -223,11 +258,7 @@ export function PollCard({
       )}
 
       <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        {voted ? (
-          <div style={{ fontFamily: fonts.condensed, fontSize: 13, fontWeight: 600, color: colors.brown80, letterSpacing: 0.5 }}>
-            ✓ Your vote is in · {total} of {OWNERS.length} managers voted
-          </div>
-        ) : (
+        {picking ? (
           <>
             <button
               onClick={castVote}
@@ -245,11 +276,42 @@ export function PollCard({
                 cursor: !selection || !voter || busy ? "default" : "pointer",
               }}
             >
-              {busy ? "SAVING…" : "CAST VOTE"}
+              {busy ? "SAVING…" : changing ? "SAVE CHANGE" : "CAST VOTE"}
             </button>
+            {changing && (
+              <button
+                onClick={() => {
+                  setChanging(false);
+                  setSelection(null);
+                }}
+                style={{ background: "none", border: `1px solid ${colors.cardBorder}`, color: colors.brown80, fontFamily: fonts.condensed, fontWeight: 600, fontSize: 13, padding: "9px 14px", borderRadius: 4, cursor: "pointer" }}
+              >
+                CANCEL
+              </button>
+            )}
             <div style={{ fontFamily: fonts.condensed, fontSize: 12.5, color: colors.brown70, letterSpacing: 0.3 }}>
-              {!voter ? "Pick your name above to vote." : `${total} of ${OWNERS.length} managers voted`}
+              {!voter ? "Pick your team above to vote." : `${total} of ${OWNERS.length} managers voted`}
             </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontFamily: fonts.condensed, fontSize: 13, fontWeight: 600, color: colors.brown80, letterSpacing: 0.5 }}>
+              {closed
+                ? `Voting closed · ${total} of ${OWNERS.length} managers voted`
+                : `✓ Your vote is in · ${total} of ${OWNERS.length} managers voted`}
+            </div>
+            {voted && !closed && (
+              <button
+                onClick={() => {
+                  setChanging(true);
+                  setSelection(myPick);
+                  setVoteError(null);
+                }}
+                style={{ background: "none", border: `1px solid ${colors.orange}`, color: colors.orange, fontFamily: fonts.condensed, fontWeight: 700, fontSize: 12, letterSpacing: 0.5, padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}
+              >
+                CHANGE MY VOTE
+              </button>
+            )}
           </>
         )}
       </div>

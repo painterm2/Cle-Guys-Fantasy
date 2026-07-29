@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Body must be JSON." }, { status: 400 });
   }
-  const { pollId, owner, optionId } = body ?? {};
+  const { pollId, owner, optionId, change } = body ?? {};
   if (!pollId || !optionId) {
     return NextResponse.json({ error: "pollId and optionId are required." }, { status: 400 });
   }
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Pick which manager you are first." }, { status: 400 });
   }
   try {
-    const ok = await castBallot(pollId, owner, optionId);
+    const ok = await castBallot(pollId, owner, optionId, change === true);
     if (!ok) {
       return NextResponse.json({ error: "You've already voted on this one." }, { status: 409 });
     }

@@ -43,13 +43,13 @@ export default function RulesPage() {
     <>
       <h1 style={{ fontFamily: fonts.display, fontSize: 34, margin: "0 0 24px", fontWeight: 400 }}>LEAGUE RULES</h1>
 
+      <ProposeRule />
+
+      <div style={{ height: 12 }} />
       <SectionLabel>HOUSE RULES</SectionLabel>
       {ruleGroups.map((grp) => (
         <RuleCard key={grp.title} title={grp.title} rules={grp.rules} />
       ))}
-
-      <div style={{ height: 12 }} />
-      <ProposeRule />
 
       <div style={{ height: 12 }} />
       <SectionLabel>LEAGUE SETTINGS{meta.live ? " — LIVE FROM ESPN" : ""}</SectionLabel>

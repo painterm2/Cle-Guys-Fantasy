@@ -129,16 +129,26 @@ export function mergeBallots(rawIncoming: Poll[], stored: Poll[]): Poll[] {
   });
 }
 
-/** Cast one ballot. Returns false if that manager already voted. */
-export async function castBallot(pollId: string, owner: string, optionId: string): Promise<boolean> {
+/**
+ * Cast or change one ballot. Returns false if the manager already voted and
+ * `allowChange` wasn't set — still one ballot per manager either way, a change
+ * replaces it rather than adding another.
+ */
+export async function castBallot(
+  pollId: string,
+  owner: string,
+  optionId: string,
+  allowChange = false,
+): Promise<boolean> {
   const polls = await readPolls();
   const poll = polls.find((p) => p.id === pollId);
   if (!poll) throw new Error("Poll not found.");
+  if (poll.closed) throw new Error("This poll is closed.");
   if (!poll.options.some((o) => o.id === optionId)) throw new Error("Option not found.");
 
   const h = hashOwner(owner);
   const ballots = poll.ballots ?? {};
-  if (ballots[h] != null) return false; // one vote per manager, any device
+  if (ballots[h] != null && !allowChange) return false;
 
   poll.ballots = { ...ballots, [h]: optionId };
   await writePolls(polls);
