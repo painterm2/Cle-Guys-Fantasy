@@ -24,6 +24,10 @@ export interface Poll {
   closes?: string;
   options: PollOption[];
   createdAt: string;
+  /** "rule" polls are Yay/Nay proposals that pass on a league majority. */
+  kind?: "poll" | "rule";
+  /** Who proposed it (rule proposals only). */
+  proposedBy?: string;
   /** When true, anyone can append their own option to the poll. */
   allowAdditions?: boolean;
   /** votes per option, aligned to `options`. Server-computed. */
@@ -70,6 +74,40 @@ export function setMyOwner(name: string) {
 }
 
 export const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+
+/** Votes needed for a rule to pass — a straight majority of the league. */
+export const MAJORITY = Math.floor(OWNERS.length / 2) + 1;
+
+export const YAY = "yay";
+export const NAY = "nay";
+
+/** Build the Yay/Nay poll behind a rule proposal. */
+export function makeRuleProposal(text: string, proposedBy: string): Poll {
+  return {
+    id: newId(),
+    question: text,
+    kind: "rule",
+    proposedBy,
+    options: [
+      { id: YAY, label: "Yay — adopt it" },
+      { id: NAY, label: "Nay — leave it alone" },
+    ],
+    createdAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Where a rule proposal stands. It passes the moment a majority of the league
+ * says yay, and is dead once enough have said nay that yay can't get there.
+ */
+export function ruleOutcome(poll: Poll): { status: "pending" | "passed" | "failed"; yay: number; nay: number } {
+  const counts = poll.counts ?? poll.options.map(() => 0);
+  const yay = counts[poll.options.findIndex((o) => o.id === YAY)] ?? 0;
+  const nay = counts[poll.options.findIndex((o) => o.id === NAY)] ?? 0;
+  if (yay >= MAJORITY) return { status: "passed", yay, nay };
+  if (nay > OWNERS.length - MAJORITY) return { status: "failed", yay, nay };
+  return { status: "pending", yay, nay };
+}
 
 /** Counts per option index, derived from a ballots map. */
 export function countsFrom(options: PollOption[], ballots: Record<string, string> | undefined): number[] {

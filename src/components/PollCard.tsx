@@ -4,7 +4,7 @@ import { useState } from "react";
 import { colors, fonts } from "@/lib/theme";
 import { logFeed } from "@/lib/sharedStore";
 import { COMMISH_PASSWORD } from "@/components/CommishProvider";
-import { OWNERS, teamFor, newId, type Poll } from "@/lib/polls";
+import { OWNERS, teamFor, newId, ruleOutcome, MAJORITY, type Poll } from "@/lib/polls";
 
 /**
  * One poll: options, tallies, vote button, and — when the poll allows it —
@@ -108,11 +108,18 @@ export function PollCard({
   };
 
   const notVoted = OWNERS.filter((o) => !votedBy.includes(o));
+  const isRule = poll.kind === "rule";
+  const outcome = isRule ? ruleOutcome(poll) : null;
 
   return (
     <div style={{ background: colors.white, border: `1px solid ${colors.cardBorder}`, borderRadius: 6, padding: "22px 26px", marginBottom: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14, gap: 12 }}>
         <div style={{ fontWeight: 700, fontSize: 16.5 }}>
+          {isRule && (
+            <div style={{ fontFamily: fonts.condensed, fontSize: 11, letterSpacing: 1.2, fontWeight: 700, color: colors.orange, marginBottom: 4 }}>
+              RULE PROPOSAL{poll.proposedBy ? ` · ${poll.proposedBy}` : ""}
+            </div>
+          )}
           {poll.question}
           {poll.allowAdditions && (
             <span style={{ marginLeft: 10, fontFamily: fonts.condensed, fontSize: 11, letterSpacing: 1, fontWeight: 700, color: colors.orange, border: `1px solid ${colors.orange}`, borderRadius: 20, padding: "2px 8px", verticalAlign: "middle" }}>
@@ -185,6 +192,30 @@ export function PollCard({
           >
             + ADD OPTION
           </button>
+        </div>
+      )}
+
+      {outcome && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: "10px 14px",
+            borderRadius: 5,
+            background:
+              outcome.status === "passed" ? "rgba(34,120,60,0.10)" : outcome.status === "failed" ? "rgba(49,29,0,0.06)" : "#f8f4ea",
+            border: `1px solid ${outcome.status === "passed" ? "rgba(34,120,60,0.35)" : "rgba(49,29,0,0.12)"}`,
+            fontFamily: fonts.condensed,
+            fontSize: 13,
+            letterSpacing: 0.3,
+            color: outcome.status === "passed" ? "#22783C" : colors.brown80,
+            fontWeight: 600,
+          }}
+        >
+          {outcome.status === "passed"
+            ? `✓ PASSED — ${outcome.yay} of ${OWNERS.length} voted yay. Add it to the rulebook.`
+            : outcome.status === "failed"
+              ? `✗ REJECTED — ${outcome.nay} nays, so it can't reach ${MAJORITY}.`
+              : `Needs ${MAJORITY} of ${OWNERS.length} to pass · ${outcome.yay} yay · ${outcome.nay} nay · ${MAJORITY - outcome.yay} more yay needed`}
         </div>
       )}
 
