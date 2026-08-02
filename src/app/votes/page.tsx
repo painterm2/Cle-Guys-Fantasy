@@ -33,7 +33,7 @@ export default function VotesPage() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
-        <PageTitle sub="One vote per manager. Votes are anonymous.">VOTES &amp; POLLS</PageTitle>
+        <PageTitle sub="One vote per manager. Only the totals are shown.">VOTES &amp; POLLS</PageTitle>
         <button
           onClick={() => identified && setShowForm((s) => !s)}
           disabled={!identified}
@@ -51,7 +51,7 @@ export default function VotesPage() {
       )}
       {error && <div style={{ color: colors.orange, fontSize: 13.5, marginBottom: 12, fontFamily: fonts.condensed }}>{error}</div>}
 
-      <OwnerPicker owner={owner} onChange={setOwner} note="Saved on this device — your vote stays anonymous." />
+      <OwnerPicker owner={owner} onChange={setOwner} note="Saved on this device. The league sees the totals, not who picked what." />
 
       {showForm && <NewPollForm onSubmit={addPoll} />}
 
