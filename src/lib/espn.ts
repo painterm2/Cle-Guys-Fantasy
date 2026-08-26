@@ -688,3 +688,227 @@ export async function getSeasonStandings(year: number): Promise<EspnResult<TeamS
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// DRAFT ROOM (commish only)
+//
+// Everything the live draft board needs, in one server round-trip:
+//   • the player pool with ESPN's own draft ranks, ADP and projections
+//   • the draft picks made so far (ESPN publishes these live during a draft)
+//   • pro team abbreviations and bye weeks
+//   • league teams, so picks can be attributed
+// ---------------------------------------------------------------------------
+
+const POS_BY_ID: Record<number, string> = { 1: "QB", 2: "RB", 3: "WR", 4: "TE", 5: "K", 16: "DST" };
+
+export interface DraftPlayer {
+  id: number;
+  name: string;
+  pos: string;
+  proTeam: string;
+  bye: number | null;
+  /** ESPN's draft rank for this league's scoring. Lower is better. */
+  rank: number | null;
+  adp: number | null;
+  projected: number | null;
+  percentOwned: number | null;
+  injury: string | null;
+}
+
+export interface DraftPick {
+  overall: number;
+  round: number;
+  roundPick: number;
+  teamId: number;
+  playerId: number;
+  keeper: boolean;
+}
+
+export interface DraftBoard {
+  players: DraftPlayer[];
+  /** Starting lineup requirements straight from the league settings. */
+  lineup: { pos: string; count: number }[];
+  benchSize: number;
+  rounds: number;
+  picks: DraftPick[];
+  teams: { id: number; name: string; abbrev: string; owner: string; logo: string | null }[];
+  /** ESPN's own draft order (team ids, pick 1 first) when it has published one. */
+  draftOrder: number[];
+  inProgress: boolean;
+  complete: boolean;
+  scoring: "PPR" | "STANDARD";
+  season: number;
+  /** Set when part of the board loaded but something else didn't. */
+  warning?: string;
+}
+
+/** Like fetchLeague, but allows the X-Fantasy-Filter header the player query needs. */
+async function fetchLeagueFiltered(views: string[], filter?: unknown, revalidate = 0): Promise<any> {
+  const cfg = getLeagueConfig();
+  const params = new URLSearchParams();
+  for (const v of views) params.append("view", v);
+  const url = `${API_HOST}/apis/v3/games/ffl/seasons/${cfg.season}/segments/0/leagues/${cfg.leagueId}?${params}`;
+
+  const cookie = cookieHeader(cfg);
+  const res = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      ...(cookie ? { cookie } : {}),
+      ...(filter ? { "x-fantasy-filter": JSON.stringify(filter) } : {}),
+    },
+    // The draft moves fast — don't serve a stale board.
+    cache: revalidate === 0 ? "no-store" : undefined,
+    ...(revalidate > 0 ? { next: { revalidate } } : {}),
+  });
+
+  if (res.status === 401) {
+    const err = new Error("ESPN returned 401 — the espn_s2/SWID cookies are missing or expired.");
+    (err as any).code = "AUTH";
+    throw err;
+  }
+  if (!res.ok) throw new Error(`ESPN API responded ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+/** True when the league awards a point per reception. */
+function isPPR(settings: any): boolean {
+  const items: any[] = settings?.scoringSettings?.scoringItems ?? [];
+  const rec = items.find((it) => it.statId === 53);
+  const pts = rec?.pointsOverrides?.[16] ?? rec?.points ?? 0;
+  return Number(pts) > 0;
+}
+
+export async function getDraftBoard(limit = 300): Promise<EspnResult<DraftBoard | null>> {
+  const needsCreds = !hasCredentials();
+  const { season } = getLeagueConfig();
+
+  try {
+    // Settings first — we need the scoring type to ask for the right ranks.
+    const base = await fetchLeagueFiltered(["mSettings", "mTeam", "mDraftDetail", "proTeamSchedules_wl"], undefined, 0);
+    const scoring: "PPR" | "STANDARD" = isPPR(base?.settings) ? "PPR" : "STANDARD";
+
+    // Pro team abbreviations + bye weeks.
+    const proTeams: any[] = base?.settings?.proTeams ?? [];
+    const proById = new Map<number, { abbrev: string; bye: number | null }>();
+    for (const t of proTeams) {
+      proById.set(t.id, { abbrev: (t.abbrev || "").toUpperCase(), bye: t.byeWeek || null });
+    }
+
+    // The player pool, ordered by ESPN's draft ranking for this scoring type.
+    const filter = {
+      players: {
+        limit,
+        sortDraftRanks: { sortPriority: 100, sortAsc: true, value: scoring },
+        filterStatus: { value: ["FREEAGENT", "WAIVERS", "ONTEAM"] },
+      },
+    };
+    // The pool is the fragile call (big response, header-filtered). If it
+    // fails, still return picks and rosters — a partial board during a live
+    // draft beats an error screen.
+    let rawPlayers: any[] = [];
+    let warning: string | undefined;
+    try {
+      const pool = await fetchLeagueFiltered(["kona_player_info"], filter, 0);
+      rawPlayers = pool?.players ?? [];
+    } catch (poolErr: any) {
+      try {
+        // Retry without the sort filter — some seasons reject it.
+        const pool2 = await fetchLeagueFiltered(["kona_player_info"], { players: { limit } }, 0);
+        rawPlayers = pool2?.players ?? [];
+      } catch {
+        warning = `Player pool didn't load (${poolErr?.message ?? "unknown"}) — picks and rosters still work.`;
+      }
+    }
+
+    const players: DraftPlayer[] = rawPlayers
+      .map((entry) => {
+        const p = entry?.player ?? {};
+        const ranks = p.draftRanksByRankType ?? {};
+        const rk = ranks[scoring] ?? ranks.PPR ?? ranks.STANDARD ?? null;
+        const pro = proById.get(p.proTeamId);
+
+        // Season projection: statSourceId 1 = projected, splitType 0 = full season.
+        const proj = (p.stats ?? []).find(
+          (s: any) => s.statSourceId === 1 && s.statSplitTypeId === 0 && Number(s.seasonId) === season,
+        );
+
+        return {
+          id: p.id,
+          name: p.fullName ?? "",
+          pos: POS_BY_ID[p.defaultPositionId] ?? "?",
+          proTeam: pro?.abbrev ?? "",
+          bye: pro?.bye ?? null,
+          rank: rk?.rank ?? null,
+          adp: p.ownership?.averageDraftPosition != null ? Math.round(p.ownership.averageDraftPosition * 10) / 10 : null,
+          projected: proj?.appliedTotal != null ? Math.round(proj.appliedTotal * 10) / 10 : null,
+          percentOwned: p.ownership?.percentOwned != null ? Math.round(p.ownership.percentOwned) : null,
+          injury: p.injuryStatus && p.injuryStatus !== "ACTIVE" ? String(p.injuryStatus) : null,
+        };
+      })
+      .filter((p) => p.name && p.id != null);
+
+    // Fall back to ADP ordering for anyone ESPN didn't rank.
+    players.sort((a, b) => {
+      const ra = a.rank ?? a.adp ?? 9999;
+      const rb = b.rank ?? b.adp ?? 9999;
+      return ra - rb;
+    });
+
+    // Starting lineup straight from the league's own settings.
+    const SLOT_POS: Record<number, string> = { 0: "QB", 2: "RB", 4: "WR", 6: "TE", 16: "DST", 17: "K", 23: "FLEX" };
+    const counts: Record<string, number> = base?.settings?.rosterSettings?.lineupSlotCounts ?? {};
+    const lineup = Object.entries(counts)
+      .map(([slot, n]) => ({ pos: SLOT_POS[Number(slot)], count: Number(n) || 0 }))
+      .filter((s) => s.pos && s.count > 0);
+    const benchSize = Number(counts[20] ?? 0) + Number(counts[21] ?? 0);
+    const rounds = lineup.reduce((a, s) => a + s.count, 0) + Number(counts[20] ?? 0);
+
+    const detail = base?.draftDetail ?? {};
+    const picks: DraftPick[] = (detail.picks ?? []).map((p: any) => ({
+      overall: p.overallPickNumber,
+      round: p.roundId,
+      roundPick: p.roundPickNumber,
+      teamId: p.teamId,
+      playerId: p.playerId,
+      keeper: Boolean(p.keeper),
+    })).filter((p: DraftPick) => p.playerId > 0);
+
+    const teams = (base?.teams ?? []).map((t: any) => ({
+      id: t.id,
+      name: teamName(t, `Team ${t.id}`),
+      abbrev: t.abbrev || "",
+      owner: ownerName(t, base?.members ?? [], buildRealBySwid([{ league: base }])),
+      logo: normalizeLogo(t.logo),
+    }));
+
+    // ESPN publishes the pick order for round 1; derive the rest by snake.
+    const firstRound = picks.filter((p) => p.round === 1).sort((a, b) => a.roundPick - b.roundPick);
+    const draftOrder = firstRound.length ? firstRound.map((p) => p.teamId) : [];
+
+    return {
+      status: "live",
+      data: {
+        players,
+        lineup,
+        benchSize,
+        rounds: rounds || 16,
+        picks: picks.sort((a, b) => a.overall - b.overall),
+        teams,
+        draftOrder,
+        inProgress: Boolean(detail.inProgress),
+        complete: Boolean(detail.drafted),
+        scoring,
+        season,
+        warning,
+      },
+      needsCredentials: false,
+    };
+  } catch (err: any) {
+    return {
+      status: err?.code === "AUTH" ? "unconfigured" : "error",
+      data: null,
+      needsCredentials: err?.code === "AUTH" ? true : needsCreds,
+      error: err?.message ?? "Unknown error",
+    };
+  }
+}

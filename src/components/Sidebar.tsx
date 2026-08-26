@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useCommish } from "./CommishProvider";
 import { colors, fonts } from "@/lib/theme";
 
-const NAV: { href: string; label: string }[] = [
+const NAV: { href: string; label: string; commishOnly?: boolean }[] = [
   { href: "/", label: "Home" },
   { href: "/rules", label: "Rules" },
   { href: "/punishments", label: "Punishments" },
@@ -19,6 +19,7 @@ const NAV: { href: string; label: string }[] = [
   { href: "/vacation", label: "2028 Draft Location" },
   { href: "/history", label: "History & HOF" },
   { href: "/store", label: "Store" },
+  { href: "/draft-room", label: "Draft Room", commishOnly: true },
 ];
 
 export function Sidebar() {
@@ -104,7 +105,7 @@ export function Sidebar() {
           </div>
         </div>
 
-        {NAV.map((item) => {
+        {NAV.filter((item) => !item.commishOnly || commish).map((item) => {
           const active = isActive(item.href);
           return (
             <Link
