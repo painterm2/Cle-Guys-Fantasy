@@ -4,7 +4,9 @@ import { LiveScoreboard } from "@/components/LiveScoreboard";
 import { LeagueFeed } from "@/components/LeagueFeed";
 import { PunishmentProofStrip } from "@/components/PunishmentProofStrip";
 import { DraftCountdown } from "@/components/DraftCountdown";
-import { statCards, currentPunishment, SEASON_LABEL } from "@/lib/leagueData";
+import { DraftOrderCard } from "@/components/DraftOrderCard";
+import { CurrentPunishmentCard } from "@/components/CurrentPunishmentCard";
+import { statCards, SEASON_LABEL } from "@/lib/leagueData";
 
 export default function HomePage() {
   return (
@@ -53,6 +55,7 @@ export default function HomePage() {
             <div style={{ fontSize: 13, color: colors.brown80, marginTop: 2 }}>{stat.sub}</div>
           </div>
         ))}
+        <DraftOrderCard />
       </div>
 
       {/* Feed + right column */}
@@ -64,15 +67,7 @@ export default function HomePage() {
 
           <PunishmentProofStrip />
 
-          <div style={{ background: colors.orange, borderRadius: 6, padding: "20px 22px", color: "#fff" }}>
-            <div style={{ fontFamily: fonts.condensed, fontSize: 12, letterSpacing: 1.5, fontWeight: 700, marginBottom: 6 }}>
-              CURRENT PUNISHMENT
-            </div>
-            <div style={{ fontFamily: fonts.display, fontSize: 21, lineHeight: 1.15, marginBottom: 8 }}>
-              {currentPunishment.text || "Not decided yet."}
-            </div>
-            <div style={{ fontSize: 13, opacity: 0.9 }}>{currentPunishment.sub || "The league votes before Week 1."}</div>
-          </div>
+          <CurrentPunishmentCard />
 
           <CtaCard label="VOTES & POLLS" title="Punishments, rule changes, league decisions" href="/votes" cta="GO TO VOTES →" />
           <CtaCard label="2028 IN-PERSON DRAFT" title="Where are we drafting in 2028?" href="/vacation" cta="SEE THE PLAN →" />

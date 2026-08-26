@@ -1,8 +1,33 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { colors, fonts } from "@/lib/theme";
 import { PageTitle, SectionLabel } from "@/components/ui";
-import { draftOrder, draftVideos, SEASON_YEAR } from "@/lib/leagueData";
+import { draftVideos, SEASON_YEAR } from "@/lib/leagueData";
+import type { DraftInfo } from "@/lib/espn";
 
 export default function DraftPage() {
+  const [order, setOrder] = useState<DraftInfo["order"]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/draft-info");
+        const j = (await r.json()) as { status: string; data: DraftInfo };
+        if (alive && j.status === "live") setOrder(j.data.order ?? []);
+      } catch {
+        /* stays on the "not chosen" state */
+      } finally {
+        if (alive) setLoaded(true);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   return (
     <>
       <PageTitle sub="Draft order gets decided by video every year. Recaps live here.">DRAFT ORDER &amp; DRAFT DAY</PageTitle>
@@ -11,20 +36,23 @@ export default function DraftPage() {
         <div style={{ fontFamily: fonts.condensed, fontSize: 13, letterSpacing: 2, color: colors.orange, fontWeight: 700 }}>
           {SEASON_YEAR} DRAFT ORDER
         </div>
-        {draftOrder.length > 0 ? (
+        {order.length > 0 ? (
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", flex: 1, alignItems: "flex-start" }}>
-            {draftOrder.map((d) => (
+            {order.map((d) => (
               <div
-                key={d.pick}
-                style={{ background: colors.cream, borderRadius: 4, padding: "8px 12px", fontFamily: fonts.condensed, fontWeight: 700, fontSize: 14, color: colors.brown, lineHeight: 1.3, maxWidth: 180 }}
+                key={d.slot}
+                style={{ background: colors.cream, borderRadius: 4, padding: "8px 12px", fontFamily: fonts.condensed, fontWeight: 700, fontSize: 14, color: colors.brown, lineHeight: 1.3, maxWidth: 200 }}
               >
-                {d.pick}. {d.team}
+                {d.slot}. {d.team}
+                {d.owner ? <span style={{ display: "block", fontWeight: 600, fontSize: 11.5, color: colors.brown60 }}>{d.owner}</span> : null}
               </div>
             ))}
           </div>
         ) : (
           <div style={{ flex: 1, color: colors.cream, fontSize: 15 }}>
-            Not chosen yet — the order gets revealed by video before draft day. Check back once it&apos;s set.
+            {loaded
+              ? "Not chosen yet — the order gets revealed by video before draft day. Check back once it's set."
+              : "Checking ESPN for the draft order…"}
           </div>
         )}
       </div>

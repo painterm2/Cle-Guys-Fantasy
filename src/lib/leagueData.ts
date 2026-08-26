@@ -17,14 +17,14 @@ export const SEASON_YEAR = 2026;
 export const statCards = [
   { label: "SEASONS RUNNING", value: "8", sub: "since 2019" },
   { label: "TEAMS", value: "10", sub: "managers" },
-  { label: "2026 PUNISHMENT", value: "TBD", sub: "set before Week 1" },
-  { label: "DRAFT ORDER", value: "TBD", sub: "revealed before draft day" },
+  { label: "2026 PUNISHMENT", value: "9-9-9 Challenge", sub: "voted in by the league" },
 ];
 
 // The punishment currently being served. Fill in once it's decided.
 export const currentPunishment = {
   eyebrow: "2026 SEASON",
-  text: "",
+  text: "9-9-9 Challenge",
+  // Who serves it is pulled live from ESPN — last place in the 2025 regular season.
   sub: "",
 };
 

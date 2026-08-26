@@ -934,27 +934,53 @@ export interface DraftInfo {
   date: number | null;
   inProgress: boolean;
   complete: boolean;
+  /** Pick order, first pick first. Public — the league should see this. */
+  order: { slot: number; team: string; owner: string }[];
 }
 
 export async function getDraftInfo(): Promise<EspnResult<DraftInfo>> {
   const needsCreds = !hasCredentials();
   try {
-    const json = await fetchLeague(["mSettings", "mDraftDetail"]);
+    const json = await fetchLeague(["mSettings", "mDraftDetail", "mTeam"]);
     const raw = json?.settings?.draftSettings?.date;
     const date = typeof raw === "number" && raw > 0 ? raw : null;
+
+    // Order: the league's configured pick order, else round one of the slots
+    // ESPN pre-creates before a draft begins.
+    const teams: any[] = json?.teams ?? [];
+    const members: any[] = json?.members ?? [];
+    const realBySwid = buildRealBySwid([{ league: json }]);
+    const byId = new Map<number, any>(teams.map((t) => [t.id, t]));
+
+    const configured: number[] = json?.settings?.draftSettings?.pickOrder ?? [];
+    const firstRound: number[] = (json?.draftDetail?.picks ?? [])
+      .filter((p: any) => p.roundId === 1)
+      .sort((a: any, b: any) => a.roundPickNumber - b.roundPickNumber)
+      .map((p: any) => p.teamId);
+    const ids = configured.length ? configured : firstRound;
+
+    const order = ids
+      .map((id, i) => {
+        const t = byId.get(id);
+        if (!t) return null;
+        return { slot: i + 1, team: teamName(t, `Team ${id}`), owner: ownerName(t, members, realBySwid) };
+      })
+      .filter(Boolean) as { slot: number; team: string; owner: string }[];
+
     return {
       status: "live",
       data: {
         date,
         inProgress: Boolean(json?.draftDetail?.inProgress),
         complete: Boolean(json?.draftDetail?.drafted),
+        order,
       },
       needsCredentials: false,
     };
   } catch (err: any) {
     return {
       status: err?.code === "AUTH" ? "unconfigured" : "error",
-      data: { date: null, inProgress: false, complete: false },
+      data: { date: null, inProgress: false, complete: false, order: [] },
       needsCredentials: err?.code === "AUTH" ? true : needsCreds,
       error: err?.message ?? "Unknown error",
     };
