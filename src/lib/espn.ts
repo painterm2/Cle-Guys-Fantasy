@@ -864,14 +864,18 @@ export async function getDraftBoard(limit = 300): Promise<EspnResult<DraftBoard 
     const rounds = lineup.reduce((a, s) => a + s.count, 0) + Number(counts[20] ?? 0);
 
     const detail = base?.draftDetail ?? {};
-    const picks: DraftPick[] = (detail.picks ?? []).map((p: any) => ({
+    // ESPN pre-populates every pick slot with its team before the draft starts,
+    // with playerId 0/-1 until someone is taken. Keep the whole list to read the
+    // order off it, and treat only the filled ones as actual picks.
+    const allSlots = (detail.picks ?? []).map((p: any) => ({
       overall: p.overallPickNumber,
       round: p.roundId,
       roundPick: p.roundPickNumber,
       teamId: p.teamId,
       playerId: p.playerId,
       keeper: Boolean(p.keeper),
-    })).filter((p: DraftPick) => p.playerId > 0);
+    }));
+    const picks: DraftPick[] = allSlots.filter((p: DraftPick) => p.playerId > 0);
 
     const teams = (base?.teams ?? []).map((t: any) => ({
       id: t.id,
@@ -881,9 +885,16 @@ export async function getDraftBoard(limit = 300): Promise<EspnResult<DraftBoard 
       logo: normalizeLogo(t.logo),
     }));
 
-    // ESPN publishes the pick order for round 1; derive the rest by snake.
-    const firstRound = picks.filter((p) => p.round === 1).sort((a, b) => a.roundPick - b.roundPick);
-    const draftOrder = firstRound.length ? firstRound.map((p) => p.teamId) : [];
+    // Draft order, best source first:
+    //   1. the league's own configured pick order
+    //   2. round one of the pick slots (present before the draft begins)
+    //   3. nothing — the page then falls back to team order and says so
+    const configured: number[] = base?.settings?.draftSettings?.pickOrder ?? [];
+    const firstRound = allSlots
+      .filter((p: DraftPick) => p.round === 1)
+      .sort((a: DraftPick, b: DraftPick) => a.roundPick - b.roundPick)
+      .map((p: DraftPick) => p.teamId);
+    const draftOrder = configured.length ? configured : firstRound;
 
     return {
       status: "live",

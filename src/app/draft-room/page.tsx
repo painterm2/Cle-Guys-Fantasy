@@ -12,6 +12,7 @@ const POS_COLOR: Record<string, string> = {
   QB: "#C2415B", RB: "#2F855A", WR: "#2B6CB0", TE: "#7B4BA8", K: "#6B7280", DST: "#6B7A3A",
 };
 const MY_TEAM_KEY = "cg-draft-myteam";
+const ORDER_KEY = "cg-draft-order";
 
 export default function DraftRoomPage() {
   const { commish } = useCommish();
@@ -22,12 +23,21 @@ export default function DraftRoomPage() {
   const [filter, setFilter] = useState("ALL");
   const [compare, setCompare] = useState<number[]>([]);
   const [live, setLive] = useState(true);
+  const [manualOrder, setManualOrder] = useState<number[] | null>(null);
+  const [editOrder, setEditOrder] = useState(false);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(MY_TEAM_KEY);
     if (saved) setMyTeamId(Number(saved));
+    const ord = localStorage.getItem(ORDER_KEY);
+    if (ord) {
+      try {
+        const parsed = JSON.parse(ord);
+        if (Array.isArray(parsed) && parsed.length) setManualOrder(parsed);
+      } catch {}
+    }
   }, []);
 
   const pull = useCallback(async () => {
@@ -67,10 +77,32 @@ export default function DraftRoomPage() {
   );
 
   const teamCount = board?.teams.length || 10;
+  const orderSource: "manual" | "espn" | "fallback" = !board
+    ? "fallback"
+    : manualOrder && manualOrder.length === teamCount
+      ? "manual"
+      : board.draftOrder.length === teamCount
+        ? "espn"
+        : "fallback";
+
   const order = useMemo(() => {
     if (!board) return [];
-    return board.draftOrder.length === teamCount ? board.draftOrder : board.teams.map((t) => t.id);
-  }, [board, teamCount]);
+    if (manualOrder && manualOrder.length === board.teams.length) return manualOrder;
+    if (board.draftOrder.length === board.teams.length) return board.draftOrder;
+    return board.teams.map((t) => t.id);
+  }, [board, manualOrder]);
+
+  const saveOrder = (next: number[]) => {
+    setManualOrder(next);
+    localStorage.setItem(ORDER_KEY, JSON.stringify(next));
+  };
+  const moveTeam = (i: number, d: number) => {
+    const cur = order.slice();
+    const j = i + d;
+    if (j < 0 || j >= cur.length) return;
+    [cur[i], cur[j]] = [cur[j], cur[i]];
+    saveOrder(cur);
+  };
 
   const madeCount = board?.picks.length ?? 0;
   const nextOverall = madeCount + 1;
@@ -244,6 +276,7 @@ export default function DraftRoomPage() {
           <button onClick={() => setLive((v) => !v)} style={btn(live)}>
             {live ? "● LIVE" : "PAUSED"}
           </button>
+          <button onClick={() => setEditOrder((v) => !v)} style={btn(editOrder)}>ORDER</button>
           <button onClick={pull} style={btn(false)}>REFRESH</button>
         </div>
       </div>
@@ -284,6 +317,53 @@ export default function DraftRoomPage() {
               </div>
             </div>
           </div>
+
+          {/* draft order: where it came from, and a manual fix */}
+          {orderSource === "fallback" && (
+            <Banner tone="warn">
+              ESPN hasn&apos;t published a draft order yet, so this is just team order — set it with <strong>ORDER</strong> or the clock will be wrong.
+            </Banner>
+          )}
+
+          {editOrder && (
+            <div style={{ background: colors.white, border: `1px solid ${colors.orange}`, borderRadius: 6, padding: "16px 18px", marginBottom: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+                <SectionLabel>
+                  DRAFT ORDER — {orderSource === "manual" ? "SET BY YOU" : orderSource === "espn" ? "FROM ESPN" : "NOT SET"}
+                </SectionLabel>
+                {manualOrder && (
+                  <button
+                    onClick={() => {
+                      setManualOrder(null);
+                      localStorage.removeItem(ORDER_KEY);
+                    }}
+                    style={chip(false)}
+                  >
+                    Use ESPN&apos;s
+                  </button>
+                )}
+              </div>
+              <div style={{ fontSize: 13, color: colors.brown80, marginBottom: 10 }}>
+                Top to bottom is pick 1.01 through 1.{String(order.length).padStart(2, "0")}. Snake reverses each round.
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {order.map((tid, i) => {
+                  const t = board.teams.find((x) => x.id === tid);
+                  return (
+                    <div key={tid} style={{ display: "grid", gridTemplateColumns: "34px 1fr auto auto", gap: 8, alignItems: "center", background: tid === myTeamId ? "#fff8f0" : "#f8f4ea", border: `1px solid ${tid === myTeamId ? colors.orange : "transparent"}`, borderRadius: 4, padding: "7px 10px" }}>
+                      <span style={{ fontFamily: fonts.condensed, fontSize: 12, color: colors.brown60 }}>1.{String(i + 1).padStart(2, "0")}</span>
+                      <span style={{ fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {t?.name ?? `Team ${tid}`}
+                        {t?.owner ? <span style={{ color: colors.brown60, fontFamily: fonts.condensed, fontSize: 11 }}> · {t.owner}</span> : null}
+                      </span>
+                      <button onClick={() => moveTeam(i, -1)} disabled={i === 0} style={chip(false)}>↑</button>
+                      <button onClick={() => moveTeam(i, 1)} disabled={i === order.length - 1} style={chip(false)}>↓</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* recommendations */}
           <SectionLabel>TARGET NEXT{gap > 0 ? ` — ${gap} PICKS UNTIL YOU'RE UP` : ""}</SectionLabel>
@@ -451,7 +531,7 @@ export default function DraftRoomPage() {
           </div>
 
           <div style={{ marginTop: 18, fontFamily: fonts.condensed, fontSize: 12, color: colors.brown60, letterSpacing: 0.3 }}>
-            {board.scoring} scoring · {available.length} players available · {madeCount} picks in
+            {board.scoring} scoring · {available.length} players available · {madeCount} picks in · order {orderSource === "manual" ? "set by you" : orderSource === "espn" ? "from ESPN" : "not set"}
             {fetchedAt ? ` · updated ${fetchedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" })}` : ""}
           </div>
         </>
