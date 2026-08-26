@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { colors, fonts } from "@/lib/theme";
 import { LiveScoreboard } from "@/components/LiveScoreboard";
+import { DraftOrderStat } from "@/components/DraftOrderStat";
 import { LeagueFeed } from "@/components/LeagueFeed";
 import { PunishmentProofStrip } from "@/components/PunishmentProofStrip";
+import { StatCard } from "@/components/ui";
 import { statCards, currentPunishment, SEASON_LABEL } from "@/lib/leagueData";
 
 export default function HomePage() {
@@ -42,14 +44,10 @@ export default function HomePage() {
       {/* Stat cards */}
       <div className="cg-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 28 }}>
         {statCards.map((stat) => (
-          <div key={stat.label} style={{ background: colors.white, border: `1px solid ${colors.cardBorder}`, borderRadius: 6, padding: "18px 20px" }}>
-            <div style={{ fontFamily: fonts.condensed, fontSize: 12, letterSpacing: 1.2, color: colors.brown90, fontWeight: 600, marginBottom: 6 }}>
-              {stat.label}
-            </div>
-            <div style={{ fontFamily: fonts.display, fontSize: 26, color: colors.brown }}>{stat.value}</div>
-            <div style={{ fontSize: 13, color: colors.brown80, marginTop: 2 }}>{stat.sub}</div>
-          </div>
+          <StatCard key={stat.label} label={stat.label} value={stat.value} sub={stat.sub} />
         ))}
+        {/* The draft-order tile fills itself in from ESPN. */}
+        <DraftOrderStat />
       </div>
 
       {/* Feed + right column */}

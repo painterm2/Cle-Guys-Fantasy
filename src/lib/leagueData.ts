@@ -18,7 +18,6 @@ export const statCards = [
   { label: "SEASONS RUNNING", value: "8", sub: "since 2019" },
   { label: "TEAMS", value: "10", sub: "managers" },
   { label: "2026 PUNISHMENT", value: "TBD", sub: "set before Week 1" },
-  { label: "DRAFT ORDER", value: "TBD", sub: "revealed before draft day" },
 ];
 
 // The punishment currently being served. Fill in once it's decided.
@@ -95,8 +94,9 @@ export const ownerRealNames: Record<string, string> = {
   "Maker Bae-field": "Peter Trepke",
 };
 
-// This year's draft order hasn't been decided yet — leave empty so the page
-// shows "not chosen" instead of a fake order. Fill in once it's set.
+// The draft order comes live from ESPN (league draft settings), so there's
+// nothing to keep in sync by hand. This list is only a fallback for when ESPN
+// can't be reached — leave it empty and the page says the order isn't set yet.
 export const draftOrder: { pick: number; team: string }[] = [];
 
 // Real draft-day videos we have on file. Add more as they're recorded.

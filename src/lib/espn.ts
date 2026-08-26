@@ -688,3 +688,111 @@ export async function getSeasonStandings(year: number): Promise<EspnResult<TeamS
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Draft order — pulled live from ESPN so the site shows whatever order the
+// league actually has set. ESPN keeps it in two places: `draftSettings.
+// pickOrder` (the order the commish set, before the draft happens) and
+// `draftDetail.picks` (what actually happened, once it's done). We prefer the
+// set order and fall back to round 1 of a completed draft.
+// ---------------------------------------------------------------------------
+
+export interface DraftSlot {
+  /** 1-based first-round pick number. */
+  pick: number;
+  teamId: number;
+  team: string;
+  /** The manager behind the team, when we can resolve one. */
+  owner?: string;
+  abbrev: string;
+  logo: string | null;
+}
+
+export interface DraftOrderData {
+  order: DraftSlot[];
+  /** ESPN's draft type, e.g. "SNAKE" or "AUCTION". */
+  type?: string;
+  /** Scheduled draft date, ISO, when ESPN has one set. */
+  date?: string;
+  /** true once the draft has been completed on ESPN. */
+  drafted: boolean;
+  inProgress: boolean;
+  /** Where the order came from — the set pick order, or a finished draft. */
+  source: "pickOrder" | "picks" | "none";
+}
+
+const EMPTY_DRAFT: DraftOrderData = { order: [], drafted: false, inProgress: false, source: "none" };
+
+export async function getDraftOrder(): Promise<EspnResult<DraftOrderData>> {
+  const needsCreds = !hasCredentials();
+  try {
+    const json = await fetchLeague(["mDraftDetail", "mSettings", "mTeam"]);
+    const teams: any[] = json?.teams ?? [];
+    const members: any[] = json?.members ?? [];
+    const byId = new Map<number, any>(teams.map((t) => [t.id, t]));
+    // Same manager-name resolution the rest of the site uses.
+    const realBySwid = buildRealBySwid([{ league: json }]);
+
+    const slotFor = (teamId: number, pick: number): DraftSlot => {
+      const t = byId.get(teamId);
+      const owner = t ? ownerName(t, members, realBySwid) : "";
+      return {
+        pick,
+        teamId,
+        team: t ? teamName(t, `Team ${teamId}`) : `Team ${teamId}`,
+        owner: owner && owner !== "Unknown owner" ? owner : undefined,
+        abbrev: t?.abbrev ?? "",
+        logo: normalizeLogo(t?.logo),
+      };
+    };
+
+    const ds = json?.settings?.draftSettings ?? {};
+    const detail = json?.draftDetail ?? {};
+
+    let order: DraftSlot[] = [];
+    let source: DraftOrderData["source"] = "none";
+
+    const pickOrder: number[] = Array.isArray(ds.pickOrder)
+      ? ds.pickOrder.filter((id: unknown) => typeof id === "number")
+      : [];
+
+    if (pickOrder.length > 0) {
+      order = pickOrder.map((teamId, i) => slotFor(teamId, i + 1));
+      source = "pickOrder";
+    } else {
+      // No order set, but a finished draft still tells us what it was.
+      const round1: any[] = (detail.picks ?? [])
+        .filter((p: any) => p?.roundId === 1 && p?.teamId)
+        .sort(
+          (a: any, b: any) =>
+            (a.overallPickNumber ?? a.roundPickNumber ?? 0) - (b.overallPickNumber ?? b.roundPickNumber ?? 0),
+        );
+      if (round1.length > 0) {
+        order = round1.map((p, i) => slotFor(p.teamId, p.roundPickNumber ?? i + 1));
+        source = "picks";
+      }
+    }
+
+    const when = Number(ds.date) > 0 ? new Date(Number(ds.date)).toISOString() : undefined;
+
+    return {
+      status: "live",
+      data: {
+        order,
+        type: typeof ds.type === "string" ? ds.type : undefined,
+        date: when,
+        drafted: Boolean(detail.drafted),
+        inProgress: Boolean(detail.inProgress),
+        source,
+      },
+      needsCredentials: false,
+    };
+  } catch (err: any) {
+    return {
+      status: err?.code === "AUTH" ? "unconfigured" : "error",
+      data: EMPTY_DRAFT,
+      needsCredentials: err?.code === "AUTH" ? true : needsCreds,
+      error: err?.message ?? "Unknown error",
+    };
+  }
+}

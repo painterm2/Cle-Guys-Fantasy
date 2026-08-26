@@ -62,3 +62,16 @@ export function Card({ children, style }: { children: ReactNode; style?: CSSProp
     </div>
   );
 }
+
+/** One of the small dashboard tiles on the home page. */
+export function StatCard({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
+  return (
+    <div style={{ background: colors.white, border: `1px solid ${colors.cardBorder}`, borderRadius: 6, padding: "18px 20px" }}>
+      <div style={{ fontFamily: fonts.condensed, fontSize: 12, letterSpacing: 1.2, color: colors.brown90, fontWeight: 600, marginBottom: 6 }}>
+        {label}
+      </div>
+      <div style={{ fontFamily: fonts.display, fontSize: 26, color: colors.brown }}>{value}</div>
+      <div style={{ fontSize: 13, color: colors.brown80, marginTop: 2 }}>{sub}</div>
+    </div>
+  );
+}
