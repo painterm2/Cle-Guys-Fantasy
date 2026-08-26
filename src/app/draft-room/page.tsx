@@ -593,6 +593,7 @@ export default function DraftRoomPage() {
                       <tbody>
                         <CmpRow label="" cells={compared.map((p) => <strong key={p.id}>{p.name}</strong>)} />
                         <CmpRow label="Pos" cells={compared.map((p) => `${p.pos}${posRankOf(p)}`)} />
+                        <CmpRow label="Team" cells={compared.map((p) => p.proTeam || "—")} />
                         <CmpRow label="Rank" cells={compared.map((p) => `#${p.rank ?? "—"}`)} />
                         <CmpRow label="ADP" cells={compared.map((p) => p.adp ?? "—")} />
                         <CmpRow label="Projected" cells={compared.map((p) => p.projected ?? "—")} />
@@ -681,7 +682,7 @@ export default function DraftRoomPage() {
                           <div style={{ minWidth: 0 }}>
                             <div style={{ fontSize: 13.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
                             <div style={{ fontFamily: fonts.condensed, fontSize: 11, color: atRisk ? "#C2415B" : colors.brown60 }}>
-                              {p.pos}{posRankOf(p)} · #{p.rank ?? "—"}{atRisk ? " · likely gone before your pick" : ""}
+                              {p.proTeam ? `${p.proTeam} · ` : ""}{p.pos}{posRankOf(p)} · #{p.rank ?? "—"}{atRisk ? " · likely gone before your pick" : ""}
                             </div>
                           </div>
                           <button onClick={() => toggleCompare(p.id)} style={chip(compare.includes(p.id))}>VS</button>
@@ -706,7 +707,7 @@ export default function DraftRoomPage() {
                           <div style={{ minWidth: 0 }}>
                             <div style={{ fontSize: 13.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
                             <div style={{ fontFamily: fonts.condensed, fontSize: 11, color: colors.brown60 }}>
-                              {p.pos}{posRankOf(p)} · +{vor} over repl.{slip > 0 ? ` · falling ${slip}` : ""}{p.percentOwned != null ? ` · ${p.percentOwned}% rostered` : ""}
+                              {p.proTeam ? `${p.proTeam} · ` : ""}{p.pos}{posRankOf(p)} · +{vor} over repl.{slip > 0 ? ` · falling ${slip}` : ""}{p.percentOwned != null ? ` · ${p.percentOwned}% rostered` : ""}
                             </div>
                           </div>
                           <button onClick={() => toggleStar(p.id)} style={{ ...chip(false), color: stars.includes(p.id) ? colors.orange : colors.brown60, padding: "6px 8px" }}>
@@ -736,7 +737,7 @@ export default function DraftRoomPage() {
                           <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
                             <span style={{ fontSize: 13.5, fontWeight: 600 }}>{p.name}</span>
                             <span style={{ fontFamily: fonts.condensed, fontSize: 11, color: colors.brown60, flex: "none" }}>
-                              {p.pos}{posRankOf(p)} · #{p.rank ?? "—"}
+                              {p.proTeam ? `${p.proTeam} · ` : ""}{p.pos}{posRankOf(p)} · #{p.rank ?? "—"}
                             </span>
                           </div>
                           {items.map((it, i) => (
@@ -776,15 +777,21 @@ export default function DraftRoomPage() {
                       {roster.filled.map((s, i) => (
                         <div key={i} style={{ display: "grid", gridTemplateColumns: "58px 1fr", gap: 10, alignItems: "center", padding: "7px 10px", background: "#f8f4ea", borderRadius: 4, borderLeft: `2px solid ${s.player ? colors.cardBorder : colors.orange}` }}>
                           <span style={{ fontFamily: fonts.condensed, fontSize: 11, color: colors.brown70, letterSpacing: 0.6 }}>{s.label}</span>
-                          <span style={{ fontSize: 13.5, color: s.player ? colors.brown : colors.brown60, fontStyle: s.player ? "normal" : "italic" }}>
+                          <span style={{ fontSize: 13.5, color: s.player ? colors.brown : colors.brown60, fontStyle: s.player ? "normal" : "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {s.player ? s.player.name : "open"}
+                            {s.player?.proTeam ? (
+                              <span style={{ fontFamily: fonts.condensed, fontSize: 11, color: colors.brown60 }}> · {s.player.proTeam}</span>
+                            ) : null}
                           </span>
                         </div>
                       ))}
                       {roster.bench.map((p) => (
                         <div key={p.id} style={{ display: "grid", gridTemplateColumns: "58px 1fr", gap: 10, alignItems: "center", padding: "6px 10px" }}>
                           <span style={{ fontFamily: fonts.condensed, fontSize: 11, color: colors.brown60, letterSpacing: 0.6 }}>BE</span>
-                          <span style={{ fontSize: 13.5 }}>{p.name}</span>
+                          <span style={{ fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {p.name}
+                            {p.proTeam ? <span style={{ fontFamily: fonts.condensed, fontSize: 11, color: colors.brown60 }}> · {p.proTeam}</span> : null}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -805,7 +812,10 @@ export default function DraftRoomPage() {
                           <span style={{ fontFamily: fonts.condensed, fontSize: 11.5, color: colors.brown60 }}>
                             {pk.round}.{String(pk.roundPick).padStart(2, "0")}
                           </span>
-                          <span>{pl?.name ?? `Player ${pk.playerId}`}</span>
+                          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {pl?.name ?? `Player ${pk.playerId}`}
+                            {pl?.proTeam ? <span style={{ fontFamily: fonts.condensed, fontSize: 11, color: colors.brown60 }}> · {pl.pos} {pl.proTeam}</span> : null}
+                          </span>
                           <span style={{ fontFamily: fonts.condensed, fontSize: 11, color: pk.teamId === myTeamId ? colors.orange : colors.brown60, textAlign: "right" }}>
                             {tm?.name ?? ""}
                           </span>
