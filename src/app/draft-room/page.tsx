@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { colors, fonts } from "@/lib/theme";
 import { PageTitle, SectionLabel, EmptyState } from "@/components/ui";
 import { useCommish } from "@/components/CommishProvider";
-import type { DraftBoard, DraftPlayer } from "@/lib/espn";
+import type { DraftBoard, DraftPlayer, NewsItem } from "@/lib/espn";
 
 const POSITIONS = ["QB", "RB", "WR", "TE", "K", "DST"];
 const FLEX_OK = ["RB", "WR", "TE"];
@@ -13,6 +13,9 @@ const POS_COLOR: Record<string, string> = {
 };
 const MY_TEAM_KEY = "cg-draft-myteam";
 const ORDER_KEY = "cg-draft-order";
+const STAR_KEY = "cg-draft-stars";
+// Roughly how a FLEX spot gets used across the league, for replacement level.
+const FLEX_SHARE: Record<string, number> = { RB: 0.5, WR: 0.4, TE: 0.1 };
 
 export default function DraftRoomPage() {
   const { commish } = useCommish();
@@ -25,12 +28,21 @@ export default function DraftRoomPage() {
   const [live, setLive] = useState(true);
   const [manualOrder, setManualOrder] = useState<number[] | null>(null);
   const [editOrder, setEditOrder] = useState(false);
+  const [stars, setStars] = useState<number[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(MY_TEAM_KEY);
     if (saved) setMyTeamId(Number(saved));
+    const st = localStorage.getItem(STAR_KEY);
+    if (st) {
+      try {
+        const parsed = JSON.parse(st);
+        if (Array.isArray(parsed)) setStars(parsed);
+      } catch {}
+    }
     const ord = localStorage.getItem(ORDER_KEY);
     if (ord) {
       try {
@@ -59,6 +71,15 @@ export default function DraftRoomPage() {
   useEffect(() => {
     if (!commish) return;
     pull();
+    (async () => {
+      try {
+        const r = await fetch("/api/news");
+        const j = (await r.json()) as { status: string; data: NewsItem[] };
+        if (j.status === "live") setNews(j.data ?? []);
+      } catch {
+        /* the board works fine without headlines */
+      }
+    })();
   }, [commish, pull]);
 
   useEffect(() => {
@@ -214,6 +235,118 @@ export default function DraftRoomPage() {
       .sort((a, b) => b!.score - a!.score)
       .slice(0, 3) as { pos: string; score: number; best: DraftPlayer; reasons: string[] }[];
   }, [available, gap, needs, board]);
+
+  const toggleStar = (id: number) => {
+    setStars((cur) => {
+      const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+      localStorage.setItem(STAR_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  /**
+   * Value over replacement: how many projected points a player is worth above
+   * the last starter the league would roster at his position. This is what
+   * separates a genuine edge from a good-looking name — a QB2 and an RB2 are
+   * not the same asset even on similar projections.
+   */
+  const replacement = useMemo(() => {
+    const out: Record<string, number> = {};
+    const teams = order.length || teamCount;
+    const lineup = board?.lineup ?? [];
+    const flexCount = lineup.find((l) => l.pos === "FLEX")?.count ?? 0;
+
+    POSITIONS.forEach((pos) => {
+      const starters = lineup.find((l) => l.pos === pos)?.count ?? 0;
+      const depth = Math.max(1, Math.round(teams * (starters + flexCount * (FLEX_SHARE[pos] ?? 0))));
+      const byProj = (board?.players ?? [])
+        .filter((p) => p.pos === pos && p.projected != null)
+        .sort((a, b) => (b.projected ?? 0) - (a.projected ?? 0));
+      out[pos] = byProj[Math.min(depth, byProj.length) - 1]?.projected ?? 0;
+    });
+    return out;
+  }, [board, order.length, teamCount]);
+
+  const vorOf = useCallback(
+    (p: DraftPlayer) =>
+      p.projected == null ? null : Math.round((p.projected - (replacement[p.pos] ?? 0)) * 10) / 10,
+    [replacement],
+  );
+
+  /** Positive means the market is letting him fall past where ESPN ranks him. */
+  const slipOf = useCallback(
+    (p: DraftPlayer) => (p.adp == null || p.rank == null ? null : Math.round(p.adp - p.rank)),
+    [],
+  );
+
+  const byeClash = useCallback(
+    (p: DraftPlayer) => (p.bye == null ? 0 : myPlayers.filter((m) => m.bye === p.bye).length),
+    [myPlayers],
+  );
+
+  /** How much a player is worth to *this* roster, right now. */
+  const edgeOf = useCallback(
+    (p: DraftPlayer) => {
+      const vor = vorOf(p) ?? 0;
+      const slip = slipOf(p) ?? 0;
+      const fillsStarter = (needs[p.pos] || 0) > 0;
+      const fillsFlex = FLEX_OK.includes(p.pos) && (needs.FLEX || 0) > 0;
+      let e = vor;
+      if (fillsStarter) e += 25;
+      else if (fillsFlex) e += 12;
+      if (stars.includes(p.id)) e += 8;
+      if (slip > 0) e += Math.min(slip, 30) * 0.3;
+      if (p.injury) e -= 10;
+      e -= byeClash(p) * 3;
+      return Math.round(e * 10) / 10;
+    },
+    [vorOf, slipOf, needs, stars, byeClash],
+  );
+
+  /** Available players the numbers like more than the room does. */
+  const darkHorses = useMemo(() => {
+    return available
+      .filter((p) => p.projected != null && (vorOf(p) ?? 0) > 0)
+      .map((p) => ({ p, vor: vorOf(p) ?? 0, slip: slipOf(p) ?? 0 }))
+      .filter((x) => x.slip > 4 || x.vor > 0)
+      .sort((a, b) => b.vor + b.slip * 0.6 - (a.vor + a.slip * 0.6))
+      .slice(0, 60)
+      // Skip the obvious top-of-board names — a dark horse is someone the room
+      // is sleeping on, so require the market to be letting him slide.
+      .filter((x) => x.slip >= 3 || (x.p.percentOwned != null && x.p.percentOwned < 70))
+      .slice(0, 6);
+  }, [available, vorOf, slipOf]);
+
+  /**
+   * Headlines from ESPN's NFL feed that name a player who's still on the board.
+   * Real reporting rather than a guess at who's a sleeper — camp news, depth
+   * chart moves and injuries are exactly what moves a player's value on the
+   * day, and none of it shows up in a projection.
+   */
+  const buzz = useMemo(() => {
+    if (!news.length || !available.length) return [];
+    const hits = new Map<number, { p: DraftPlayer; items: NewsItem[] }>();
+
+    for (const item of news) {
+      const hay = `${item.headline} ${item.description}`.toLowerCase();
+      for (const p of available) {
+        // Match on the full name — a surname alone catches too many people.
+        if (p.name.length < 6) continue;
+        if (!hay.includes(p.name.toLowerCase())) continue;
+        const entry = hits.get(p.id) ?? { p, items: [] };
+        if (entry.items.length < 2) entry.items.push(item);
+        hits.set(p.id, entry);
+      }
+    }
+    return Array.from(hits.values())
+      .sort((a, b) => (a.p.rank ?? 999) - (b.p.rank ?? 999))
+      .slice(0, 8);
+  }, [news, available]);
+
+  const watchlist = useMemo(
+    () => available.filter((p) => stars.includes(p.id)),
+    [available, stars],
+  );
 
   const posRankOf = useCallback(
     (p: DraftPlayer) => {
@@ -415,7 +548,14 @@ export default function DraftRoomPage() {
                         )}
                       </div>
                       <div style={{ fontFamily: fonts.condensed, fontSize: 11.5, color: colors.brown60, letterSpacing: 0.3 }}>
-                        {[p.proTeam, p.bye ? `BYE ${p.bye}` : null, `${p.pos}${posRankOf(p)}`, p.adp ? `ADP ${p.adp}` : null, p.projected != null ? `${p.projected} proj` : null]
+                        {[
+                          p.proTeam,
+                          p.bye ? `BYE ${p.bye}` : null,
+                          `${p.pos}${posRankOf(p)}`,
+                          p.adp ? `ADP ${p.adp}` : null,
+                          vorOf(p) != null ? `VOR ${vorOf(p)}` : null,
+                          (slipOf(p) ?? 0) >= 5 ? `falling ${slipOf(p)}` : null,
+                        ]
                           .filter(Boolean)
                           .join(" · ")}
                       </div>
@@ -423,9 +563,19 @@ export default function DraftRoomPage() {
                     <span style={{ fontFamily: fonts.condensed, fontSize: 10.5, fontWeight: 700, color: "#fff", background: POS_COLOR[p.pos] ?? colors.brown60, padding: "2px 7px", borderRadius: 3 }}>
                       {p.pos}
                     </span>
-                    <button onClick={() => toggleCompare(p.id)} style={chip(compare.includes(p.id))}>
-                      {compare.includes(p.id) ? "✓ VS" : "+ VS"}
-                    </button>
+                    <div style={{ display: "flex", gap: 5 }}>
+                      <button
+                        onClick={() => toggleStar(p.id)}
+                        title={stars.includes(p.id) ? "Remove from your list" : "Add to your list"}
+                        aria-label={stars.includes(p.id) ? "Unstar" : "Star"}
+                        style={{ ...chip(false), color: stars.includes(p.id) ? colors.orange : colors.brown60, borderColor: stars.includes(p.id) ? colors.orange : colors.cardBorder, padding: "6px 8px" }}
+                      >
+                        {stars.includes(p.id) ? "★" : "☆"}
+                      </button>
+                      <button onClick={() => toggleCompare(p.id)} style={chip(compare.includes(p.id))}>
+                        {compare.includes(p.id) ? "✓ VS" : "+ VS"}
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {shown.length === 0 && <div style={{ padding: 24, textAlign: "center", color: colors.brown60 }}>Nobody matches that.</div>}
@@ -446,7 +596,31 @@ export default function DraftRoomPage() {
                         <CmpRow label="Rank" cells={compared.map((p) => `#${p.rank ?? "—"}`)} />
                         <CmpRow label="ADP" cells={compared.map((p) => p.adp ?? "—")} />
                         <CmpRow label="Projected" cells={compared.map((p) => p.projected ?? "—")} />
-                        <CmpRow label="Bye" cells={compared.map((p) => p.bye ?? "—")} />
+                        <CmpRow
+                          label="Value over repl."
+                          cells={compared.map((p) => {
+                            const v = vorOf(p);
+                            if (v == null) return "—";
+                            const best = Math.max(...compared.map((x) => vorOf(x) ?? -999));
+                            return <span style={{ color: v === best ? "#2F855A" : undefined, fontWeight: v === best ? 700 : 400 }}>{v > 0 ? `+${v}` : v}</span>;
+                          })}
+                        />
+                        <CmpRow
+                          label="Vs ADP"
+                          cells={compared.map((p) => {
+                            const sl = slipOf(p);
+                            if (sl == null) return "—";
+                            return sl > 3 ? <span style={{ color: "#2F855A" }}>falling {sl}</span> : sl < -3 ? <span style={{ color: "#C2415B" }}>going early {Math.abs(sl)}</span> : "on par";
+                          })}
+                        />
+                        <CmpRow
+                          label="Bye"
+                          cells={compared.map((p) => {
+                            const clash = byeClash(p);
+                            return clash > 0 ? <span style={{ color: "#B4801F" }}>{p.bye} · {clash} on roster</span> : (p.bye ?? "—");
+                          })}
+                        />
+                        <CmpRow label="On your list" cells={compared.map((p) => (stars.includes(p.id) ? <span style={{ color: colors.orange }}>★ yes</span> : "—"))} />
                         <CmpRow label="Rostered" cells={compared.map((p) => (p.percentOwned != null ? `${p.percentOwned}%` : "—"))} />
                         <CmpRow label="Status" cells={compared.map((p) => p.injury ? p.injury.replace(/_/g, " ") : "OK")} />
                         <CmpRow
@@ -465,7 +639,121 @@ export default function DraftRoomPage() {
                         />
                       </tbody>
                     </table>
+                    {compared.length > 1 && (() => {
+                      const ranked = compared.slice().sort((a, b) => edgeOf(b) - edgeOf(a));
+                      const top = ranked[0];
+                      const runnerUp = ranked[1];
+                      const why: string[] = [];
+                      if ((needs[top.pos] || 0) > 0) why.push(`fills a starting ${top.pos}`);
+                      else if (FLEX_OK.includes(top.pos) && (needs.FLEX || 0) > 0) why.push("fills your FLEX");
+                      const v = vorOf(top);
+                      if (v != null && v > (vorOf(runnerUp) ?? -999)) why.push(`${v > 0 ? "+" : ""}${v} over replacement`);
+                      if ((slipOf(top) ?? 0) > 3) why.push(`falling ${slipOf(top)} spots past his rank`);
+                      if (stars.includes(top.id)) why.push("on your list");
+                      if (!why.length) why.push("closest thing to a tiebreak on the numbers");
+                      return (
+                        <div style={{ marginTop: 12, padding: "11px 13px", background: "#fff8f0", border: `1px solid ${colors.orange}`, borderRadius: 5 }}>
+                          <div style={{ fontFamily: fonts.condensed, fontSize: 10.5, letterSpacing: 1.1, color: colors.orange, fontWeight: 700, marginBottom: 3 }}>
+                            LEANS
+                          </div>
+                          <div style={{ fontSize: 14 }}>
+                            <strong>{top.name}</strong>{" "}
+                            <span style={{ color: colors.brown80, fontSize: 13 }}>— {why.slice(0, 3).join(", ")}.</span>
+                          </div>
+                          <div style={{ fontFamily: fonts.condensed, fontSize: 11, color: colors.brown60, marginTop: 4 }}>
+                            Edge score {edgeOf(top)} vs {edgeOf(runnerUp)} — roster fit, value over replacement, ADP, byes and injuries.
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
+                )}
+              </Card>
+
+              {watchlist.length > 0 && (
+                <Card title={`Your list · ${watchlist.length}`} action={<button onClick={() => { setStars([]); localStorage.removeItem(STAR_KEY); }} style={chip(false)}>Clear</button>}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {watchlist.map((p) => {
+                      const idx = available.findIndex((a) => a.id === p.id);
+                      const atRisk = gap > 0 && idx >= 0 && idx < gap;
+                      return (
+                        <div key={p.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center", padding: "7px 10px", background: "#f8f4ea", borderRadius: 4, borderLeft: `2px solid ${atRisk ? "#C2415B" : colors.orange}` }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                            <div style={{ fontFamily: fonts.condensed, fontSize: 11, color: atRisk ? "#C2415B" : colors.brown60 }}>
+                              {p.pos}{posRankOf(p)} · #{p.rank ?? "—"}{atRisk ? " · likely gone before your pick" : ""}
+                            </div>
+                          </div>
+                          <button onClick={() => toggleCompare(p.id)} style={chip(compare.includes(p.id))}>VS</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              )}
+
+              <Card title="Dark horses">
+                {darkHorses.length === 0 ? (
+                  <div style={{ fontSize: 13.5, color: colors.brown70 }}>Nothing standing out yet — this fills in once projections load.</div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 12.5, color: colors.brown70, marginBottom: 10, lineHeight: 1.5 }}>
+                      Worth more than their draft slot says — measured against the last startable player at their position.
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {darkHorses.map(({ p, vor, slip }) => (
+                        <div key={p.id} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, alignItems: "center", padding: "7px 10px", background: "#f8f4ea", borderRadius: 4 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                            <div style={{ fontFamily: fonts.condensed, fontSize: 11, color: colors.brown60 }}>
+                              {p.pos}{posRankOf(p)} · +{vor} over repl.{slip > 0 ? ` · falling ${slip}` : ""}{p.percentOwned != null ? ` · ${p.percentOwned}% rostered` : ""}
+                            </div>
+                          </div>
+                          <button onClick={() => toggleStar(p.id)} style={{ ...chip(false), color: stars.includes(p.id) ? colors.orange : colors.brown60, padding: "6px 8px" }}>
+                            {stars.includes(p.id) ? "★" : "☆"}
+                          </button>
+                          <button onClick={() => toggleCompare(p.id)} style={chip(compare.includes(p.id))}>VS</button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </Card>
+
+              <Card title="In the news">
+                {buzz.length === 0 ? (
+                  <div style={{ fontSize: 13.5, color: colors.brown70 }}>
+                    No headlines naming an available player right now.
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 12.5, color: colors.brown70, marginBottom: 10, lineHeight: 1.5 }}>
+                      Today&apos;s NFL headlines that name someone still on the board.
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {buzz.map(({ p, items }) => (
+                        <div key={p.id} style={{ borderLeft: `2px solid ${colors.orange}`, paddingLeft: 10 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
+                            <span style={{ fontSize: 13.5, fontWeight: 600 }}>{p.name}</span>
+                            <span style={{ fontFamily: fonts.condensed, fontSize: 11, color: colors.brown60, flex: "none" }}>
+                              {p.pos}{posRankOf(p)} · #{p.rank ?? "—"}
+                            </span>
+                          </div>
+                          {items.map((it, i) => (
+                            <a
+                              key={i}
+                              href={it.link || undefined}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ display: "block", fontSize: 12.5, color: colors.brown80, lineHeight: 1.45, marginTop: 3, textDecoration: "none" }}
+                            >
+                              {it.headline} <span style={{ color: colors.orange }}>↗</span>
+                            </a>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </Card>
 

@@ -149,6 +149,9 @@ export const storeProducts: StoreProduct[] = [
   },
 ];
 
+/** Where the league gathers for the draft. */
+export const DRAFT_CALL_URL = "https://calendar.app.google/GWWGdjhMnyMrMWni7";
+
 /** Where the commish wants the order screenshot sent. */
 export const COMMISH_CONTACT = "the commish";
 

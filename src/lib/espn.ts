@@ -923,3 +923,40 @@ export async function getDraftBoard(limit = 300): Promise<EspnResult<DraftBoard 
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Draft date — public. Just the scheduled time and whether it's under way, so
+// the whole league can see a countdown without exposing the draft board.
+// ---------------------------------------------------------------------------
+
+export interface DraftInfo {
+  /** Epoch ms of the scheduled draft, when the league has set one. */
+  date: number | null;
+  inProgress: boolean;
+  complete: boolean;
+}
+
+export async function getDraftInfo(): Promise<EspnResult<DraftInfo>> {
+  const needsCreds = !hasCredentials();
+  try {
+    const json = await fetchLeague(["mSettings", "mDraftDetail"]);
+    const raw = json?.settings?.draftSettings?.date;
+    const date = typeof raw === "number" && raw > 0 ? raw : null;
+    return {
+      status: "live",
+      data: {
+        date,
+        inProgress: Boolean(json?.draftDetail?.inProgress),
+        complete: Boolean(json?.draftDetail?.drafted),
+      },
+      needsCredentials: false,
+    };
+  } catch (err: any) {
+    return {
+      status: err?.code === "AUTH" ? "unconfigured" : "error",
+      data: { date: null, inProgress: false, complete: false },
+      needsCredentials: err?.code === "AUTH" ? true : needsCreds,
+      error: err?.message ?? "Unknown error",
+    };
+  }
+}

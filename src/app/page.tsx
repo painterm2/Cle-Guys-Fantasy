@@ -3,11 +3,14 @@ import { colors, fonts } from "@/lib/theme";
 import { LiveScoreboard } from "@/components/LiveScoreboard";
 import { LeagueFeed } from "@/components/LeagueFeed";
 import { PunishmentProofStrip } from "@/components/PunishmentProofStrip";
+import { DraftCountdown } from "@/components/DraftCountdown";
 import { statCards, currentPunishment, SEASON_LABEL } from "@/lib/leagueData";
 
 export default function HomePage() {
   return (
     <>
+      <DraftCountdown />
+
       {/* Hero */}
       <div
         style={{
