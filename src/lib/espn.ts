@@ -18,6 +18,10 @@ import { ownerRealNames } from "./leagueData";
 const DEFAULT_LEAGUE_ID = "2110005"; // Cleveland Guys
 
 const API_HOST = "https://lm-api-reads.fantasy.espn.com";
+// The host above is ESPN's read replica — fine for standings and history, but
+// it can trail the live draft by a pick or two. During a draft we ask both and
+// take whichever has more picks in it.
+const API_HOST_PRIMARY = "https://fantasy.espn.com";
 
 export type EspnStatus = "live" | "unconfigured" | "error";
 
@@ -743,11 +747,19 @@ export interface DraftBoard {
 }
 
 /** Like fetchLeague, but allows the X-Fantasy-Filter header the player query needs. */
-async function fetchLeagueFiltered(views: string[], filter?: unknown, revalidate = 0): Promise<any> {
+async function fetchLeagueFiltered(
+  views: string[],
+  filter?: unknown,
+  revalidate = 0,
+  host = API_HOST,
+): Promise<any> {
   const cfg = getLeagueConfig();
   const params = new URLSearchParams();
   for (const v of views) params.append("view", v);
-  const url = `${API_HOST}/apis/v3/games/ffl/seasons/${cfg.season}/segments/0/leagues/${cfg.leagueId}?${params}`;
+  // Uncached calls also have to get past whatever CDN sits between us and ESPN,
+  // and those honour a changing query string more reliably than a header.
+  if (revalidate === 0) params.append("_", String(Date.now()));
+  const url = `${host}/apis/v3/games/ffl/seasons/${cfg.season}/segments/0/leagues/${cfg.leagueId}?${params}`;
 
   const cookie = cookieHeader(cfg);
   const res = await fetch(url, {
@@ -755,6 +767,7 @@ async function fetchLeagueFiltered(views: string[], filter?: unknown, revalidate
       accept: "application/json",
       ...(cookie ? { cookie } : {}),
       ...(filter ? { "x-fantasy-filter": JSON.stringify(filter) } : {}),
+      ...(revalidate === 0 ? { "cache-control": "no-cache", pragma: "no-cache" } : {}),
     },
     // The draft moves fast — don't serve a stale board.
     cache: revalidate === 0 ? "no-store" : undefined,
@@ -768,6 +781,65 @@ async function fetchLeagueFiltered(views: string[], filter?: unknown, revalidate
   }
   if (!res.ok) throw new Error(`ESPN API responded ${res.status} ${res.statusText}`);
   return res.json();
+}
+
+/** How many real picks are in a league payload — the freshness signal. */
+function pickCount(json: any): number {
+  return ((json?.draftDetail?.picks ?? []) as any[]).filter((p) => Number(p?.playerId) > 0).length;
+}
+
+/**
+ * Same request against both ESPN hosts, keeping whichever came back with more
+ * picks. The read replica occasionally lags mid-draft, and a board that misses
+ * the pick made ten seconds ago is worse than useless while you're on the clock.
+ */
+async function fetchLeagueFreshest(views: string[]): Promise<any> {
+  const tries = await Promise.allSettled([
+    fetchLeagueFiltered(views, undefined, 0, API_HOST),
+    fetchLeagueFiltered(views, undefined, 0, API_HOST_PRIMARY),
+  ]);
+  const ok = tries.filter((t) => t.status === "fulfilled").map((t) => (t as PromiseFulfilledResult<any>).value);
+  if (!ok.length) {
+    const first = tries.find((t) => t.status === "rejected") as PromiseRejectedResult | undefined;
+    throw first?.reason ?? new Error("ESPN did not respond.");
+  }
+  return ok.reduce((best, cur) => (pickCount(cur) > pickCount(best) ? cur : best));
+}
+
+/**
+ * Just the picks, for polling while a draft is running. Skips the 350-player
+ * pool so it can run every few seconds without hammering ESPN.
+ */
+export async function getDraftPicks(): Promise<EspnResult<{ picks: DraftPick[]; inProgress: boolean; complete: boolean } | null>> {
+  const needsCreds = !hasCredentials();
+  try {
+    const base = await fetchLeagueFreshest(["mDraftDetail"]);
+    const detail = base?.draftDetail ?? {};
+    const picks: DraftPick[] = (detail.picks ?? [])
+      .map((p: any) => ({
+        overall: p.overallPickNumber,
+        round: p.roundId,
+        roundPick: p.roundPickNumber,
+        teamId: p.teamId,
+        playerId: p.playerId,
+        keeper: Boolean(p.keeper),
+      }))
+      .filter((p: DraftPick) => p.playerId > 0)
+      .sort((a: DraftPick, b: DraftPick) => a.overall - b.overall);
+
+    return {
+      status: "live",
+      data: { picks, inProgress: Boolean(detail.inProgress), complete: Boolean(detail.drafted) },
+      needsCredentials: false,
+    };
+  } catch (err: any) {
+    return {
+      status: err?.code === "AUTH" ? "unconfigured" : "error",
+      data: null,
+      needsCredentials: err?.code === "AUTH" ? true : needsCreds,
+      error: err?.message ?? "Unknown error",
+    };
+  }
 }
 
 /** True when the league awards a point per reception. */
@@ -784,7 +856,7 @@ export async function getDraftBoard(limit = 300): Promise<EspnResult<DraftBoard 
 
   try {
     // Settings first — we need the scoring type to ask for the right ranks.
-    const base = await fetchLeagueFiltered(["mSettings", "mTeam", "mDraftDetail", "proTeamSchedules_wl"], undefined, 0);
+    const base = await fetchLeagueFreshest(["mSettings", "mTeam", "mDraftDetail", "proTeamSchedules_wl"]);
     const scoring: "PPR" | "STANDARD" = isPPR(base?.settings) ? "PPR" : "STANDARD";
 
     // Pro team abbreviations + bye weeks.

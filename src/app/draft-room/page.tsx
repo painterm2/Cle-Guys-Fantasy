@@ -54,7 +54,7 @@ export default function DraftRoomPage() {
 
   const pull = useCallback(async () => {
     try {
-      const r = await fetch("/api/draft?limit=350", { cache: "no-store" });
+      const r = await fetch(`/api/draft?limit=350&t=${Date.now()}`, { cache: "no-store" });
       const json = (await r.json()) as { status: string; data: DraftBoard | null; needsCredentials: boolean; error?: string };
       if (json.status === "live" && json.data) {
         setBoard(json.data);
@@ -65,6 +65,30 @@ export default function DraftRoomPage() {
       }
     } catch {
       setMeta({ loaded: true, error: "Couldn't reach the draft feed." });
+    }
+  }, []);
+
+  // Picks-only poll. The full board carries 350 players and doesn't need to
+  // come down every few seconds; the pick list does, so it runs on its own
+  // fast loop and merges into whatever board is already on screen.
+  const pullPicks = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/draft/picks?t=${Date.now()}`, { cache: "no-store" });
+      const json = (await r.json()) as {
+        status: string;
+        data: { picks: DraftBoard["picks"]; inProgress: boolean; complete: boolean } | null;
+      };
+      if (json.status !== "live" || !json.data) return;
+      const fresh = json.data;
+      setBoard((prev) => {
+        if (!prev) return prev;
+        // Never move backwards: a lagging replica reply shouldn't erase a pick.
+        if (fresh.picks.length < prev.picks.length) return prev;
+        return { ...prev, picks: fresh.picks, inProgress: fresh.inProgress, complete: fresh.complete };
+      });
+      setFetchedAt(new Date());
+    } catch {
+      /* the next tick tries again */
     }
   }, []);
 
@@ -84,11 +108,20 @@ export default function DraftRoomPage() {
 
   useEffect(() => {
     if (!commish || !live) return;
-    timer.current = setInterval(pull, 12000);
-    return () => {
-      if (timer.current) clearInterval(timer.current);
+    // Picks every 5s so the board keeps up with the clock; the heavy board
+    // refresh every 45s to pick up roster and settings changes.
+    const fast = setInterval(pullPicks, 5000);
+    timer.current = setInterval(pull, 45000);
+    const onFocus = () => {
+      pullPicks();
     };
-  }, [commish, live, pull]);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(fast);
+      if (timer.current) clearInterval(timer.current);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [commish, live, pull, pullPicks]);
 
   // ---- derived ----------------------------------------------------------
   const takenIds = useMemo(() => new Set((board?.picks ?? []).map((p) => p.playerId)), [board]);
@@ -410,7 +443,15 @@ export default function DraftRoomPage() {
             {live ? "● LIVE" : "PAUSED"}
           </button>
           <button onClick={() => setEditOrder((v) => !v)} style={btn(editOrder)}>ORDER</button>
-          <button onClick={pull} style={btn(false)}>REFRESH</button>
+          <button
+            onClick={() => {
+              pullPicks();
+              pull();
+            }}
+            style={btn(false)}
+          >
+            REFRESH
+          </button>
         </div>
       </div>
 
