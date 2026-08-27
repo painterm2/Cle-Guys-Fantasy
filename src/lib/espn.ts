@@ -728,6 +728,11 @@ export interface DraftPick {
   keeper: boolean;
 }
 
+export interface RosterSpot {
+  playerId: number;
+  teamId: number;
+}
+
 export interface DraftBoard {
   players: DraftPlayer[];
   /** Starting lineup requirements straight from the league settings. */
@@ -735,6 +740,12 @@ export interface DraftBoard {
   benchSize: number;
   rounds: number;
   picks: DraftPick[];
+  /**
+   * Every player currently sitting on a team, straight off the rosters. ESPN's
+   * pick list can trail the draft; a roster spot fills the instant a pick lands,
+   * so this is the reliable "who's gone" signal.
+   */
+  rostered: RosterSpot[];
   teams: { id: number; name: string; abbrev: string; owner: string; logo: string | null }[];
   /** ESPN's own draft order (team ids, pick 1 first) when it has published one. */
   draftOrder: number[];
@@ -783,9 +794,17 @@ async function fetchLeagueFiltered(
   return res.json();
 }
 
-/** How many real picks are in a league payload — the freshness signal. */
+/**
+ * Freshness score for a league payload: filled picks plus rostered players.
+ * Whichever host reports more of them has seen more of the draft.
+ */
 function pickCount(json: any): number {
-  return ((json?.draftDetail?.picks ?? []) as any[]).filter((p) => Number(p?.playerId) > 0).length;
+  const picks = ((json?.draftDetail?.picks ?? []) as any[]).filter((p) => Number(p?.playerId) > 0).length;
+  const rostered = ((json?.teams ?? []) as any[]).reduce(
+    (n, t) => n + ((t?.roster?.entries ?? []) as any[]).length,
+    0,
+  );
+  return picks + rostered;
 }
 
 /**
@@ -806,30 +825,53 @@ async function fetchLeagueFreshest(views: string[]): Promise<any> {
   return ok.reduce((best, cur) => (pickCount(cur) > pickCount(best) ? cur : best));
 }
 
+/** Every player on a roster right now, from the mRoster view. */
+function readRostered(json: any): RosterSpot[] {
+  const out: RosterSpot[] = [];
+  for (const t of (json?.teams ?? []) as any[]) {
+    for (const e of (t?.roster?.entries ?? []) as any[]) {
+      const playerId = Number(e?.playerId ?? e?.playerPoolEntry?.id);
+      if (playerId > 0) out.push({ playerId, teamId: t.id });
+    }
+  }
+  return out;
+}
+
+/** The picks in a league payload, filled slots only, in draft order. */
+function readPicks(json: any): DraftPick[] {
+  return ((json?.draftDetail?.picks ?? []) as any[])
+    .map((p) => ({
+      overall: p.overallPickNumber,
+      round: p.roundId,
+      roundPick: p.roundPickNumber,
+      teamId: p.teamId,
+      playerId: p.playerId,
+      keeper: Boolean(p.keeper),
+    }))
+    .filter((p: DraftPick) => p.playerId > 0)
+    .sort((a: DraftPick, b: DraftPick) => a.overall - b.overall);
+}
+
 /**
- * Just the picks, for polling while a draft is running. Skips the 350-player
- * pool so it can run every few seconds without hammering ESPN.
+ * Just the picks and rosters, for polling while a draft is running. Skips the
+ * 350-player pool so it can run every few seconds without hammering ESPN.
  */
-export async function getDraftPicks(): Promise<EspnResult<{ picks: DraftPick[]; inProgress: boolean; complete: boolean } | null>> {
+export async function getDraftPicks(): Promise<
+  EspnResult<{ picks: DraftPick[]; rostered: RosterSpot[]; inProgress: boolean; complete: boolean } | null>
+> {
   const needsCreds = !hasCredentials();
   try {
-    const base = await fetchLeagueFreshest(["mDraftDetail"]);
+    const base = await fetchLeagueFreshest(["mDraftDetail", "mRoster"]);
     const detail = base?.draftDetail ?? {};
-    const picks: DraftPick[] = (detail.picks ?? [])
-      .map((p: any) => ({
-        overall: p.overallPickNumber,
-        round: p.roundId,
-        roundPick: p.roundPickNumber,
-        teamId: p.teamId,
-        playerId: p.playerId,
-        keeper: Boolean(p.keeper),
-      }))
-      .filter((p: DraftPick) => p.playerId > 0)
-      .sort((a: DraftPick, b: DraftPick) => a.overall - b.overall);
 
     return {
       status: "live",
-      data: { picks, inProgress: Boolean(detail.inProgress), complete: Boolean(detail.drafted) },
+      data: {
+        picks: readPicks(base),
+        rostered: readRostered(base),
+        inProgress: Boolean(detail.inProgress),
+        complete: Boolean(detail.drafted),
+      },
       needsCredentials: false,
     };
   } catch (err: any) {
@@ -840,6 +882,50 @@ export async function getDraftPicks(): Promise<EspnResult<{ picks: DraftPick[]; 
       error: err?.message ?? "Unknown error",
     };
   }
+}
+
+/**
+ * What each ESPN host says about the draft right now. Deliberately reports
+ * counts and flags rather than data, so it can be opened in a browser while a
+ * draft is running without leaking cookies or the board itself.
+ */
+export async function diagnoseDraft() {
+  const cfg = getLeagueConfig();
+  const hosts = [API_HOST, API_HOST_PRIMARY];
+
+  const results = await Promise.all(
+    hosts.map(async (host) => {
+      const started = Date.now();
+      try {
+        const json = await fetchLeagueFiltered(["mDraftDetail", "mRoster"], undefined, 0, host);
+        const detail = json?.draftDetail ?? {};
+        const slots = (detail.picks ?? []) as any[];
+        const picks = readPicks(json);
+        const rostered = readRostered(json);
+        return {
+          host,
+          ok: true,
+          ms: Date.now() - started,
+          pickSlots: slots.length,
+          picksMade: picks.length,
+          rosteredPlayers: rostered.length,
+          inProgress: Boolean(detail.inProgress),
+          drafted: Boolean(detail.drafted),
+          lastPicks: picks.slice(-3).map((p) => ({ overall: p.overall, teamId: p.teamId, playerId: p.playerId })),
+        };
+      } catch (err: any) {
+        return { host, ok: false, ms: Date.now() - started, error: err?.message ?? "unknown", code: err?.code ?? null };
+      }
+    }),
+  );
+
+  return {
+    now: new Date().toISOString(),
+    season: cfg.season,
+    leagueId: cfg.leagueId,
+    hasCredentials: hasCredentials(),
+    hosts: results,
+  };
 }
 
 /** True when the league awards a point per reception. */
@@ -856,7 +942,7 @@ export async function getDraftBoard(limit = 300): Promise<EspnResult<DraftBoard 
 
   try {
     // Settings first — we need the scoring type to ask for the right ranks.
-    const base = await fetchLeagueFreshest(["mSettings", "mTeam", "mDraftDetail", "proTeamSchedules_wl"]);
+    const base = await fetchLeagueFreshest(["mSettings", "mTeam", "mRoster", "mDraftDetail", "proTeamSchedules_wl"]);
     const scoring: "PPR" | "STANDARD" = isPPR(base?.settings) ? "PPR" : "STANDARD";
 
     // Pro team abbreviations + bye weeks.
@@ -976,6 +1062,7 @@ export async function getDraftBoard(limit = 300): Promise<EspnResult<DraftBoard 
         benchSize,
         rounds: rounds || 16,
         picks: picks.sort((a, b) => a.overall - b.overall),
+        rostered: readRostered(base),
         teams,
         draftOrder,
         inProgress: Boolean(detail.inProgress),

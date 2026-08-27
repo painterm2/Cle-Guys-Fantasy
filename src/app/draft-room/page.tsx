@@ -76,15 +76,16 @@ export default function DraftRoomPage() {
       const r = await fetch(`/api/draft/picks?t=${Date.now()}`, { cache: "no-store" });
       const json = (await r.json()) as {
         status: string;
-        data: { picks: DraftBoard["picks"]; inProgress: boolean; complete: boolean } | null;
+        data: { picks: DraftBoard["picks"]; rostered: DraftBoard["rostered"]; inProgress: boolean; complete: boolean } | null;
       };
       if (json.status !== "live" || !json.data) return;
       const fresh = json.data;
       setBoard((prev) => {
         if (!prev) return prev;
-        // Never move backwards: a lagging replica reply shouldn't erase a pick.
-        if (fresh.picks.length < prev.picks.length) return prev;
-        return { ...prev, picks: fresh.picks, inProgress: fresh.inProgress, complete: fresh.complete };
+        // Never move backwards: a lagging reply shouldn't erase a pick.
+        const picks = fresh.picks.length >= prev.picks.length ? fresh.picks : prev.picks;
+        const rostered = fresh.rostered.length >= prev.rostered.length ? fresh.rostered : prev.rostered;
+        return { ...prev, picks, rostered, inProgress: fresh.inProgress, complete: fresh.complete };
       });
       setFetchedAt(new Date());
     } catch {
@@ -124,7 +125,14 @@ export default function DraftRoomPage() {
   }, [commish, live, pull, pullPicks]);
 
   // ---- derived ----------------------------------------------------------
-  const takenIds = useMemo(() => new Set((board?.picks ?? []).map((p) => p.playerId)), [board]);
+  // A player is gone if ESPN logged the pick OR he's already on a roster. The
+  // roster shows it first, so the union keeps the pool honest even when the
+  // pick list trails.
+  const takenIds = useMemo(() => {
+    const s = new Set((board?.picks ?? []).map((p) => p.playerId));
+    for (const r of board?.rostered ?? []) s.add(r.playerId);
+    return s;
+  }, [board]);
   const available = useMemo(
     () => (board?.players ?? []).filter((p) => !takenIds.has(p.id)),
     [board, takenIds],
@@ -158,7 +166,9 @@ export default function DraftRoomPage() {
     saveOrder(cur);
   };
 
-  const madeCount = board?.picks.length ?? 0;
+  // Rosters fill before the pick list does, so they're the better count of how
+  // far the draft has actually gone.
+  const madeCount = Math.max(board?.picks.length ?? 0, board?.rostered.length ?? 0);
   const nextOverall = madeCount + 1;
 
   const teamForPick = useCallback(
@@ -183,10 +193,13 @@ export default function DraftRoomPage() {
   const myPlayers = useMemo(() => {
     if (!board || myTeamId == null) return [];
     const byId = new Map(board.players.map((p) => [p.id, p]));
-    return board.picks
-      .filter((p) => p.teamId === myTeamId)
-      .map((p) => byId.get(p.playerId))
-      .filter(Boolean) as DraftPlayer[];
+    const mine: number[] = [];
+    const seen = new Set<number>();
+    // Picks first so the order reads like the draft; then anything the roster
+    // knows about that the pick list hasn't caught up to.
+    for (const p of board.picks) if (p.teamId === myTeamId && !seen.has(p.playerId)) { seen.add(p.playerId); mine.push(p.playerId); }
+    for (const r of board.rostered) if (r.teamId === myTeamId && !seen.has(r.playerId)) { seen.add(r.playerId); mine.push(r.playerId); }
+    return mine.map((id) => byId.get(id)).filter(Boolean) as DraftPlayer[];
   }, [board, myTeamId]);
 
   /** Fill the real lineup slots greedily; leftovers are bench. */
